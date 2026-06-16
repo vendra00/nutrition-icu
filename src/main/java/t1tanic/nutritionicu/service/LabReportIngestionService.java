@@ -35,6 +35,7 @@ public class LabReportIngestionService {
     private final PdfTextExtractor extractor;
     private final LabReportParser parser;
     private final AnalyteCatalog analyteCatalog;
+    private final AlertService alertService;
     private final PatientRepository patientRepository;
     private final LabReportRepository reportRepository;
     private final LabReportIngestionService self;
@@ -42,12 +43,14 @@ public class LabReportIngestionService {
     public LabReportIngestionService(PdfTextExtractor extractor,
                                      LabReportParser parser,
                                      AnalyteCatalog analyteCatalog,
+                                     AlertService alertService,
                                      PatientRepository patientRepository,
                                      LabReportRepository reportRepository,
                                      @Lazy LabReportIngestionService self) {
         this.extractor = extractor;
         this.parser = parser;
         this.analyteCatalog = analyteCatalog;
+        this.alertService = alertService;
         this.patientRepository = patientRepository;
         this.reportRepository = reportRepository;
         this.self = self; // call through the proxy so per-file @Transactional applies
@@ -110,6 +113,7 @@ public class LabReportIngestionService {
         report.setPatient(patient);
         enrichResults(report, patient);
         reportRepository.save(report); // cascades sections and results
+        alertService.evaluate(report); // raise alerts for monitored patients with abnormal results
         log.debug("Ingested {} (order {}, {} sections)",
                 filename, report.getOrderNumber(), report.getSections().size());
         return true;

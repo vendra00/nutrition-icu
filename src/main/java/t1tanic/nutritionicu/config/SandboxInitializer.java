@@ -13,6 +13,7 @@ import t1tanic.nutritionicu.model.Patient;
 import t1tanic.nutritionicu.model.enums.Sector;
 import t1tanic.nutritionicu.repo.DoctorRepository;
 import t1tanic.nutritionicu.repo.PatientRepository;
+import t1tanic.nutritionicu.service.AlertService;
 
 /**
  * Seeds sandbox/demo data on startup: a handful of doctors, and (for now) marks
@@ -28,16 +29,22 @@ public class SandboxInitializer implements ApplicationRunner {
 
     private final PatientRepository patientRepository;
     private final DoctorRepository doctorRepository;
+    private final AlertService alertService;
 
-    public SandboxInitializer(PatientRepository patientRepository, DoctorRepository doctorRepository) {
+    public SandboxInitializer(PatientRepository patientRepository,
+                              DoctorRepository doctorRepository,
+                              AlertService alertService) {
         this.patientRepository = patientRepository;
         this.doctorRepository = doctorRepository;
+        this.alertService = alertService;
     }
 
     @Override
     public void run(ApplicationArguments args) {
         seedDoctors();
         markAllPatientsMonitored();
+        int alerts = alertService.evaluateForMonitoredPatients();
+        log.info("Sandbox: raised {} alert(s) from monitored patients' reports", alerts);
     }
 
     private void seedDoctors() {

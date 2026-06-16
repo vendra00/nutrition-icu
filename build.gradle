@@ -2,11 +2,16 @@ plugins {
     id 'java'
     id 'org.springframework.boot' version '4.1.0'
     id 'io.spring.dependency-management' version '1.1.7'
+    id 'com.vaadin' version '25.1.8'
 }
 
 group = 't1tanic'
 version = '0.0.1-SNAPSHOT'
 description = 'nutrition-icu'
+
+ext {
+    set('vaadinVersion', '25.1.8')
+}
 
 java {
     toolchain {
@@ -18,10 +23,19 @@ repositories {
     mavenCentral()
 }
 
+dependencyManagement {
+    imports {
+        mavenBom "com.vaadin:vaadin-bom:${vaadinVersion}"
+    }
+}
+
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+
+    // Vaadin — pure-Java UI on top of the REST/service layer
+    implementation 'com.vaadin:vaadin-spring-boot-starter'
 
     // PDF text extraction (primary path: digital text layer)
     implementation 'org.apache.pdfbox:pdfbox:3.0.6'
@@ -32,6 +46,7 @@ dependencies {
     compileOnly 'org.projectlombok:lombok'
     developmentOnly 'org.springframework.boot:spring-boot-devtools'
     developmentOnly 'org.springframework.boot:spring-boot-docker-compose'
+    developmentOnly 'com.vaadin:vaadin-dev' // Vaadin dev-mode server (frontend on the fly)
     runtimeOnly 'org.postgresql:postgresql'
     annotationProcessor 'org.projectlombok:lombok'
     testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa-test'
