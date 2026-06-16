@@ -39,3 +39,19 @@ out/
 ### Patient data — never commit real PHI ###
 src/main/resources/data/*.pdf
 src/main/resources/data/*.PDF
+
+### Vaadin — build/dev generated artifacts ###
+node_modules/
+.vaadin/
+# generated frontend (TS imports, theme, etc.)
+frontend/generated/
+src/main/frontend/generated/
+# generated production bundles
+frontend/bundles/
+src/main/bundles/
+# generated build tooling / lockfiles
+vite.generated.ts
+package-lock.json
+pnpm-lock.yaml
+# Vaadin offline key / license helpers
+src/main/resources/META-INF/VAADIN/config/flow-build-info.json

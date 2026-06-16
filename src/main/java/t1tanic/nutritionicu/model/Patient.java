@@ -65,6 +65,16 @@ public class Patient extends BaseEntity {
     @Column(name = "usual_weight_kg")
     private Double usualWeightKg;
 
+    // --- Stay window ---
+
+    /** Date the patient was admitted. */
+    @Column(name = "admission_date")
+    private LocalDate admissionDate;
+
+    /** Date the patient was discharged/released (null while still admitted). */
+    @Column(name = "discharge_date")
+    private LocalDate dischargeDate;
+
     public Patient(String medicalRecordNumber) {
         this.medicalRecordNumber = medicalRecordNumber;
     }
