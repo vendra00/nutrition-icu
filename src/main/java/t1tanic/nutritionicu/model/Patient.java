@@ -51,6 +51,20 @@ public class Patient extends BaseEntity {
     @Column(name = "monitored", nullable = false)
     private boolean monitored = false;
 
+    // --- Anthropometry (nutrition screening; entered by the doctor) ---
+
+    /** Height in centimetres. */
+    @Column(name = "height_cm")
+    private Double heightCm;
+
+    /** Current (admission) weight in kilograms. */
+    @Column(name = "current_weight_kg")
+    private Double currentWeightKg;
+
+    /** Usual/habitual weight in kilograms — to assess recent weight loss. */
+    @Column(name = "usual_weight_kg")
+    private Double usualWeightKg;
+
     public Patient(String medicalRecordNumber) {
         this.medicalRecordNumber = medicalRecordNumber;
     }
