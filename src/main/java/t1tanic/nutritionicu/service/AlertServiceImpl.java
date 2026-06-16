@@ -50,15 +50,18 @@ public class AlertServiceImpl implements AlertService {
     private final DoctorRepository doctorRepository;
     private final PatientRepository patientRepository;
     private final LabReportRepository reportRepository;
+    private final AnalyteCatalog analyteCatalog;
 
     public AlertServiceImpl(AlertRepository alertRepository,
                             DoctorRepository doctorRepository,
                             PatientRepository patientRepository,
-                            LabReportRepository reportRepository) {
+                            LabReportRepository reportRepository,
+                            AnalyteCatalog analyteCatalog) {
         this.alertRepository = alertRepository;
         this.doctorRepository = doctorRepository;
         this.patientRepository = patientRepository;
         this.reportRepository = reportRepository;
+        this.analyteCatalog = analyteCatalog;
     }
 
     @Override
@@ -148,7 +151,7 @@ public class AlertServiceImpl implements AlertService {
     private String buildMessage(List<LabResult> abnormal) {
         String detail = abnormal.stream()
                 .map(result -> "%s %s%s (%s)".formatted(
-                        result.getAnalyteName(),
+                        analyteCatalog.displayName(result.getAnalyteName()),
                         result.getValueRaw(),
                         result.getUnit() != null ? " " + result.getUnit().getSymbol() : "",
                         result.getFlag()))

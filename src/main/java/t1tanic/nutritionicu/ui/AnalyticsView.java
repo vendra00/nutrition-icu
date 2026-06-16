@@ -10,12 +10,15 @@ import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import java.math.BigDecimal;
 import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import t1tanic.nutritionicu.model.LabResult;
 import t1tanic.nutritionicu.model.Patient;
 import t1tanic.nutritionicu.repo.LabResultRepository;
 import t1tanic.nutritionicu.repo.PatientRepository;
+import t1tanic.nutritionicu.service.AnalyteCatalog;
 
 /** Pick a patient and an analyte to see its value-over-time trend and the underlying readings. */
 @Route(value = "analytics", layout = MainLayout.class)
@@ -23,14 +26,18 @@ import t1tanic.nutritionicu.repo.PatientRepository;
 public class AnalyticsView extends VerticalLayout {
 
     private final LabResultRepository resultRepository;
+    private final AnalyteCatalog analyteCatalog;
 
     private final ComboBox<Patient> patientBox = new ComboBox<>("Patient");
     private final ComboBox<String> analyteBox = new ComboBox<>("Analyte");
     private final Div chartHolder = new Div();
     private final Grid<LabResult> grid = new Grid<>(LabResult.class, false);
 
-    public AnalyticsView(PatientRepository patientRepository, LabResultRepository resultRepository) {
+    public AnalyticsView(PatientRepository patientRepository,
+                         LabResultRepository resultRepository,
+                         AnalyteCatalog analyteCatalog) {
         this.resultRepository = resultRepository;
+        this.analyteCatalog = analyteCatalog;
         setSizeFull();
         setPadding(true);
         add(new H2("Analytics"));
@@ -39,6 +46,8 @@ public class AnalyticsView extends VerticalLayout {
         patientBox.setItemLabelGenerator(p -> p.getFullName() + " (" + p.getMedicalRecordNumber() + ")");
         patientBox.addValueChangeListener(e -> onPatientSelected(e.getValue()));
 
+        // Items are the raw (Catalan) analyte names used for querying; show English labels.
+        analyteBox.setItemLabelGenerator(analyteCatalog::displayName);
         analyteBox.setEnabled(false);
         analyteBox.addValueChangeListener(e -> renderSeries());
 
@@ -63,7 +72,9 @@ public class AnalyticsView extends VerticalLayout {
             analyteBox.setEnabled(false);
             return;
         }
-        analyteBox.setItems(resultRepository.findDistinctAnalyteNames(patient.getId()));
+        List<String> analytes = new ArrayList<>(resultRepository.findDistinctAnalyteNames(patient.getId()));
+        analytes.sort(Comparator.comparing(analyteCatalog::displayName, String.CASE_INSENSITIVE_ORDER));
+        analyteBox.setItems(analytes);
         analyteBox.setEnabled(true);
     }
 
