@@ -5,9 +5,6 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
@@ -18,6 +15,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import t1tanic.nutritionicu.model.enums.ResultFlag;
+import t1tanic.nutritionicu.model.enums.Unit;
 
 /**
  * A single measured analyte within a report (analyte-per-row model).
@@ -33,11 +31,7 @@ import t1tanic.nutritionicu.model.enums.ResultFlag;
 @Getter
 @Setter
 @NoArgsConstructor
-public class LabResult {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+public class LabResult extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "section_id", nullable = false)
@@ -72,8 +66,14 @@ public class LabResult {
     @Column(name = "value_operator", length = 2)
     private String valueOperator;
 
-    @Column(name = "unit")
-    private String unit;
+    /** Unit exactly as printed, e.g. "mmol/L", "mm Hg" — kept for fidelity and unknowns. */
+    @Column(name = "unit_raw")
+    private String unitRaw;
+
+    /** Canonical unit resolved from {@link #unitRaw}; null if absent or unrecognized. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "unit", length = 24)
+    private Unit unit;
 
     /** Lower bound of the reference range, when given. */
     @Column(name = "ref_low", precision = 18, scale = 4)

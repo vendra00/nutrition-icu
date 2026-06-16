@@ -4,11 +4,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import java.time.Instant;
 import java.time.LocalDate;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -24,11 +20,7 @@ import t1tanic.nutritionicu.model.enums.Sex;
 @Getter
 @Setter
 @NoArgsConstructor
-public class Patient {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+public class Patient extends BaseEntity {
 
     /** Medical record number (Catalan "NHC") — stable hospital-wide patient identifier. */
     @Column(name = "medical_record_number", nullable = false, unique = true)
@@ -51,8 +43,13 @@ public class Patient {
     @Column(name = "social_security_number")
     private String socialSecurityNumber;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private Instant createdAt = Instant.now();
+    /**
+     * Whether the patient is currently admitted and under active monitoring (e.g. in the ICU).
+     * When true, incoming results are evaluated for alerts and feed progression insights.
+     * Managed by clinicians via the system, not inferred from historical reports.
+     */
+    @Column(name = "monitored", nullable = false)
+    private boolean monitored = false;
 
     public Patient(String medicalRecordNumber) {
         this.medicalRecordNumber = medicalRecordNumber;

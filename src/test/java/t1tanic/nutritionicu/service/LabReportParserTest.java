@@ -11,6 +11,7 @@ import t1tanic.nutritionicu.model.LabReport;
 import t1tanic.nutritionicu.model.LabResult;
 import t1tanic.nutritionicu.model.ReportSection;
 import t1tanic.nutritionicu.model.enums.ResultFlag;
+import t1tanic.nutritionicu.model.enums.Unit;
 
 /** Verifies the parser against the real PDFBox text of the two sample reports. */
 class LabReportParserTest {
@@ -36,7 +37,7 @@ class LabReportParserTest {
             for (LabResult x : s.getResults()) {
                 System.out.printf("      %-45s %s %-8s %-12s ref=%s%n",
                         x.getAnalyteName(), x.getFlag() == ResultFlag.NORMAL ? " " : x.getFlag(),
-                        x.getValueRaw(), x.getUnit() == null ? "" : x.getUnit(), x.getRefRaw());
+                        x.getValueRaw(), x.getUnitRaw() == null ? "" : x.getUnitRaw(), x.getRefRaw());
             }
         }
     }
@@ -65,7 +66,8 @@ class LabReportParserTest {
 
         LabResult sodi = findResult(parsed, "Pla-Ió sodi");
         assertThat(sodi.getValueNumeric()).isEqualByComparingTo("138.0");
-        assertThat(sodi.getUnit()).isEqualTo("mmol/L");
+        assertThat(sodi.getUnitRaw()).isEqualTo("mmol/L");
+        assertThat(sodi.getUnit()).isEqualTo(Unit.MMOL_PER_L);
         assertThat(sodi.getRefLow()).isEqualByComparingTo("136.0");
         assertThat(sodi.getRefHigh()).isEqualByComparingTo("146.0");
 
@@ -105,6 +107,11 @@ class LabReportParserTest {
         LabResult glucosa = findResult(parsed, "vSan-Glucosa");
         assertThat(glucosa.getFlag()).isEqualTo(ResultFlag.HIGH);
         assertThat(glucosa.getValueNumeric()).isEqualByComparingTo("130");
+
+        // Space-containing unit resolves through an alias.
+        LabResult oxigen = findResult(parsed, "vSan-Oxigen; tensió");
+        assertThat(oxigen.getUnitRaw()).isEqualTo("mm Hg");
+        assertThat(oxigen.getUnit()).isEqualTo(Unit.MM_HG);
     }
 
     private LabResult findResult(ParsedReport parsed, String analyte) {

@@ -10,6 +10,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -23,6 +24,7 @@ import t1tanic.nutritionicu.model.Patient;
 import t1tanic.nutritionicu.model.ReportSection;
 import t1tanic.nutritionicu.model.enums.ResultFlag;
 import t1tanic.nutritionicu.model.enums.Sex;
+import t1tanic.nutritionicu.model.enums.Unit;
 
 /**
  * Parses the plain text of a Vall d'Hebron lab report into a {@link ParsedReport}.
@@ -261,8 +263,13 @@ public class LabReportParser {
             result.setRefRaw(rest[rest.length - 3] + " - " + rest[rest.length - 1]);
             rest = java.util.Arrays.copyOfRange(rest, 0, rest.length - 3);
         }
-        String unit = String.join(" ", rest).strip();
-        result.setUnit(unit.isEmpty() ? null : unit);
+        String unitText = String.join(" ", rest).strip();
+        if (!unitText.isEmpty()) {
+            result.setUnitRaw(unitText);
+            Optional<Unit> unit = Unit.fromRaw(unitText);
+            unit.ifPresentOrElse(result::setUnit,
+                    () -> log.debug("Unrecognized unit '{}' for analyte '{}'", unitText, name));
+        }
         return result;
     }
 
