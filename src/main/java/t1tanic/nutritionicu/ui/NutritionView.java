@@ -18,6 +18,7 @@ import t1tanic.nutritionicu.model.NutritionRiskAssessment;
 import t1tanic.nutritionicu.model.Patient;
 import t1tanic.nutritionicu.model.WeightMeasurement;
 import t1tanic.nutritionicu.model.enums.NutricBand;
+import t1tanic.nutritionicu.repo.LabResultRepository;
 import t1tanic.nutritionicu.repo.PatientRepository;
 import t1tanic.nutritionicu.service.NutritionService;
 
@@ -32,12 +33,15 @@ public class NutritionView extends VerticalLayout {
 
     private final PatientRepository patientRepository;
     private final NutritionService nutritionService;
+    private final LabResultRepository labResultRepository;
     private final ComboBox<Patient> patientBox = new ComboBox<>("Patient");
     private final VerticalLayout details = new VerticalLayout();
 
-    public NutritionView(PatientRepository patientRepository, NutritionService nutritionService) {
+    public NutritionView(PatientRepository patientRepository, NutritionService nutritionService,
+                         LabResultRepository labResultRepository) {
         this.patientRepository = patientRepository;
         this.nutritionService = nutritionService;
+        this.labResultRepository = labResultRepository;
         setSizeFull();
         setPadding(true);
         add(new H2("Nutrition protocol"));
@@ -85,6 +89,9 @@ public class NutritionView extends VerticalLayout {
 
         details.add(new H3("Nutritional risk (NUTRIC)"));
         details.add(riskPanel(patient));
+
+        details.add(new H3("Metabolic monitoring (lab)"));
+        details.add(new MetabolicMonitorPanel(patient, labResultRepository));
 
         details.add(new H3("Weight trend"));
         List<WeightMeasurement> history = nutritionService.weightHistory(patient.getId());

@@ -74,7 +74,11 @@ public class AnalyteCatalog {
             Map.entry("Pla-Creatina-cinasa", new CanonicalAnalyte("CK", "Creatine kinase (CK)")),
             // Proteins
             Map.entry("Pla-Proteïna", new CanonicalAnalyte("TOTAL_PROTEIN", "Total protein")),
+            Map.entry("Pla-Albúmina", new CanonicalAnalyte("ALBUMIN", "Albumin")),
             Map.entry("Pla-Proteïna C reactiva", new CanonicalAnalyte("CRP", "C-reactive protein (CRP)")),
+            // Inflammation / metabolic-phase markers (Ebb vs Flow)
+            Map.entry("Pla-Procalcitonina", new CanonicalAnalyte("PROCALCITONIN", "Procalcitonin (PCT)")),
+            Map.entry("Srm-Procalcitonina", new CanonicalAnalyte("PROCALCITONIN", "Procalcitonin (PCT)")),
             // Cardiac markers
             Map.entry("Pla-Troponina I alta sensibilitat", new CanonicalAnalyte("TROPONIN_I_HS", "Troponin I (high-sensitivity)")),
             Map.entry("Pla-NT-Pro-Pèptid natriurètic cerebral", new CanonicalAnalyte("NT_PROBNP", "NT-proBNP")),
