@@ -10,11 +10,8 @@ import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
-import java.time.LocalDate;
-import java.time.Period;
 import java.time.ZoneId;
 import java.util.List;
-import java.util.Locale;
 import java.util.Optional;
 import t1tanic.nutritionicu.dto.NutritionMetrics;
 import t1tanic.nutritionicu.model.NutritionRiskAssessment;
@@ -63,14 +60,14 @@ public class NutritionView extends VerticalLayout {
 
         FormLayout info = new FormLayout();
         info.addFormItem(new Span(String.valueOf(patient.getSex())), "Sex");
-        info.addFormItem(new Span(ageText(patient)), "Age");
-        info.addFormItem(new Span(fmt(patient.getHeightCm()) + " cm"), "Height");
-        info.addFormItem(new Span(fmt(patient.getCurrentWeightKg()) + " kg"), "Current weight");
-        info.addFormItem(new Span(fmt(patient.getUsualWeightKg()) + " kg"), "Usual weight");
-        info.addFormItem(new Span(fmt(m.bmi())), "BMI");
-        info.addFormItem(new Span(fmt(m.idealBodyWeightKg()) + " kg"), "Ideal body weight");
-        info.addFormItem(new Span(fmt(m.adjustedBodyWeightKg()) + " kg"), "Adjusted body weight");
-        info.addFormItem(new Span(fmt(m.weightLossPercent()) + " %"), "Recent weight loss");
+        info.addFormItem(new Span(UiFormat.ageYears(patient)), "Age");
+        info.addFormItem(new Span(UiFormat.number(patient.getHeightCm()) + " cm"), "Height");
+        info.addFormItem(new Span(UiFormat.number(patient.getCurrentWeightKg()) + " kg"), "Current weight");
+        info.addFormItem(new Span(UiFormat.number(patient.getUsualWeightKg()) + " kg"), "Usual weight");
+        info.addFormItem(new Span(UiFormat.number(m.bmi())), "BMI");
+        info.addFormItem(new Span(UiFormat.number(m.idealBodyWeightKg()) + " kg"), "Ideal body weight");
+        info.addFormItem(new Span(UiFormat.number(m.adjustedBodyWeightKg()) + " kg"), "Adjusted body weight");
+        info.addFormItem(new Span(UiFormat.number(m.weightLossPercent()) + " %"), "Recent weight loss");
         details.add(info);
 
         Button bodyData = new Button("Edit body data", e ->
@@ -136,17 +133,6 @@ public class NutritionView extends VerticalLayout {
     }
 
     private static String bandText(NutricBand band) {
-        return band == null ? "—" : band.label();
-    }
-
-    private static String ageText(Patient patient) {
-        if (patient.getBirthDate() == null) {
-            return "—";
-        }
-        return Period.between(patient.getBirthDate(), LocalDate.now()).getYears() + " yrs";
-    }
-
-    private static String fmt(Double value) {
-        return value == null ? "—" : String.format(Locale.US, "%.1f", value);
+        return band == null ? UiFormat.EMPTY : band.label();
     }
 }

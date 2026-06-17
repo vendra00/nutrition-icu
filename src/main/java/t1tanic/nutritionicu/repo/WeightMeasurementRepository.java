@@ -13,4 +13,7 @@ public interface WeightMeasurementRepository extends JpaRepository<WeightMeasure
 
     /** The entry for a specific date, if any (used to upsert on edit). */
     Optional<WeightMeasurement> findByPatientIdAndMeasuredOn(Long patientId, LocalDate measuredOn);
+
+    /** The most recent dated measurement, if any — the patient's current weight. */
+    Optional<WeightMeasurement> findTopByPatientIdOrderByMeasuredOnDesc(Long patientId);
 }

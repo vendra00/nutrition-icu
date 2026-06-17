@@ -8,8 +8,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Stream;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,10 +26,9 @@ import t1tanic.nutritionicu.repo.PatientRepository;
  * Ingestion is idempotent: a file already loaded (by filename or Petició) is skipped,
  * and each file is processed in its own transaction so one bad file can't roll back the rest.
  */
+@Slf4j
 @Service
 public class LabReportIngestionService {
-
-    private static final Logger log = LoggerFactory.getLogger(LabReportIngestionService.class);
 
     private final PdfTextExtractor extractor;
     private final LabReportParser parser;

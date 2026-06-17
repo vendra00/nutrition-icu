@@ -1,7 +1,6 @@
 package t1tanic.nutritionicu.service;
 
 import java.time.LocalDate;
-import java.time.Period;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
@@ -112,9 +111,8 @@ public class NutritionServiceImpl implements NutritionService {
                                                         SofaBand sofa, ComorbidityBand comorbidity,
                                                         AdmissionDelayBand admissionDelay, Il6Band il6) {
         Patient patient = patient(patientId);
-        int age = patient.getBirthDate() != null
-                ? Period.between(patient.getBirthDate(), date).getYears() : 0;
-        AgeBand ageBand = AgeBand.fromAge(age);
+        Integer years = patient.ageOn(date);
+        AgeBand ageBand = AgeBand.fromAge(years == null ? 0 : years);
         NutricScore nutric = computeNutric(ageBand, apache, sofa, comorbidity, admissionDelay, il6);
 
         NutritionRiskAssessment assessment = new NutritionRiskAssessment(patient, date);
@@ -142,8 +140,7 @@ public class NutritionServiceImpl implements NutritionService {
 
     /** Current weight always reflects the most recent dated measurement (or null if none). */
     private void syncCurrentWeight(Patient patient) {
-        Double latest = weightRepository.findByPatientIdOrderByMeasuredOnAsc(patient.getId()).stream()
-                .reduce((first, second) -> second)
+        Double latest = weightRepository.findTopByPatientIdOrderByMeasuredOnDesc(patient.getId())
                 .map(WeightMeasurement::getWeightKg)
                 .orElse(null);
         patient.setCurrentWeightKg(latest);

@@ -6,6 +6,7 @@ import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import org.junit.jupiter.api.Test;
+import t1tanic.nutritionicu.config.AppProperties;
 import t1tanic.nutritionicu.dto.ParsedReport;
 import t1tanic.nutritionicu.model.LabReport;
 import t1tanic.nutritionicu.model.LabResult;
@@ -16,7 +17,9 @@ import t1tanic.nutritionicu.model.enums.Unit;
 /** Verifies the parser against the real PDFBox text of the two sample reports. */
 class LabReportParserTest {
 
-    private final PdfTextExtractor extractor = new PdfTextExtractor();
+    private final PdfTextExtractor extractor = new PdfTextExtractor(
+            new AppProperties(new AppProperties.Ingestion("src/main/resources/data"),
+                    new AppProperties.Ocr("", "cat+spa")));
     private final LabReportParser parser = new LabReportParser();
 
     private ParsedReport parse(String filename) {

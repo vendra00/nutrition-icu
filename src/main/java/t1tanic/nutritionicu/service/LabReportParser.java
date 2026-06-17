@@ -6,6 +6,8 @@ import java.time.LocalDateTime;
 import java.time.Period;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
+import java.time.temporal.ChronoField;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -14,8 +16,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import t1tanic.nutritionicu.dto.ParsedReport;
 import t1tanic.nutritionicu.model.LabReport;
@@ -34,10 +35,9 @@ import t1tanic.nutritionicu.model.enums.Unit;
  * each result row is {@code name [flag] value [unit] [low - high]}, and a
  * "Resultats revisats i validats per:" line closes a section.
  */
+@Slf4j
 @Component
 public class LabReportParser {
-
-    private static final Logger log = LoggerFactory.getLogger(LabReportParser.class);
 
     /** Top-level headings. The dash markers don't reliably distinguish these from
      *  sub-sections (e.g. GASOS EN SANG), so we recognise categories by vocabulary. */
@@ -81,7 +81,7 @@ public class LabReportParser {
     private static final DateTimeFormatter DATE_SHORT = DateTimeFormatter.ofPattern("d/M/yy");
     private static final DateTimeFormatter DATE_TIME = new DateTimeFormatterBuilder()
             .appendPattern("d/M/")
-            .appendValueReduced(java.time.temporal.ChronoField.YEAR, 2, 4, 2000)
+            .appendValueReduced(ChronoField.YEAR, 2, 4, 2000)
             .optionalStart().appendPattern(" H:mm:ss").optionalEnd()
             .toFormatter(Locale.ROOT);
 
@@ -236,13 +236,13 @@ public class LabReportParser {
             flag = toFlag(tokens[valueIdx - 1]);
             nameEnd = valueIdx - 1;
         }
-        String name = String.join(" ", java.util.Arrays.copyOfRange(tokens, 0, nameEnd)).strip();
+        String name = String.join(" ", Arrays.copyOfRange(tokens, 0, nameEnd)).strip();
         if (name.isEmpty()) {
             return null;
         }
 
         String valueRaw = tokens[valueIdx];
-        String[] rest = java.util.Arrays.copyOfRange(tokens, valueIdx + 1, tokens.length);
+        String[] rest = Arrays.copyOfRange(tokens, valueIdx + 1, tokens.length);
 
         LabResult result = new LabResult();
         result.setAnalyteName(name);
@@ -261,7 +261,7 @@ public class LabReportParser {
             result.setRefLow(toDecimal(rest[rest.length - 3]));
             result.setRefHigh(toDecimal(rest[rest.length - 1]));
             result.setRefRaw(rest[rest.length - 3] + " - " + rest[rest.length - 1]);
-            rest = java.util.Arrays.copyOfRange(rest, 0, rest.length - 3);
+            rest = Arrays.copyOfRange(rest, 0, rest.length - 3);
         }
         String unitText = String.join(" ", rest).strip();
         if (!unitText.isEmpty()) {

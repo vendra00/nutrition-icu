@@ -7,7 +7,6 @@ import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.select.Select;
 import java.time.LocalDate;
-import java.time.Period;
 import t1tanic.nutritionicu.dto.NutricScore;
 import t1tanic.nutritionicu.model.Patient;
 import t1tanic.nutritionicu.model.enums.AdmissionDelayBand;
@@ -35,8 +34,8 @@ public class RiskAssessmentDialog extends Dialog {
         setHeaderTitle("Nutritional risk · " + patient.getFullName());
         setWidth("440px");
 
-        int age = patient.getBirthDate() != null
-                ? Period.between(patient.getBirthDate(), LocalDate.now()).getYears() : 0;
+        Integer years = patient.ageOn(LocalDate.now());
+        int age = years == null ? 0 : years;
         AgeBand ageBand = AgeBand.fromAge(age);
         add(new Span("Age: " + age + " yrs → " + ageBand.label() + " (" + ageBand.points() + " pt)"));
 

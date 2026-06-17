@@ -6,6 +6,7 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 import java.time.LocalDate;
+import java.time.Period;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -77,5 +78,10 @@ public class Patient extends BaseEntity {
 
     public Patient(String medicalRecordNumber) {
         this.medicalRecordNumber = medicalRecordNumber;
+    }
+
+    /** Age in whole years as of {@code date}, or {@code null} if the birth date is unknown. */
+    public Integer ageOn(LocalDate date) {
+        return birthDate == null ? null : Period.between(birthDate, date).getYears();
     }
 }

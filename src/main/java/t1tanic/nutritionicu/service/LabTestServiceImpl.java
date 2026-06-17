@@ -2,8 +2,8 @@ package t1tanic.nutritionicu.service;
 
 import java.nio.file.Path;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import t1tanic.nutritionicu.config.AppProperties;
 import t1tanic.nutritionicu.dto.IngestionSummary;
 
 /**
@@ -17,10 +17,9 @@ public class LabTestServiceImpl implements LabTestService {
     private final LabReportIngestionService ingestionService;
     private final Path root;
 
-    public LabTestServiceImpl(LabReportIngestionService ingestionService,
-                              @Value("${app.ingestion.root:src/main/resources/data}") String root) {
+    public LabTestServiceImpl(LabReportIngestionService ingestionService, AppProperties properties) {
         this.ingestionService = ingestionService;
-        this.root = Path.of(root).toAbsolutePath().normalize();
+        this.root = Path.of(properties.ingestion().root()).toAbsolutePath().normalize();
     }
 
     @Override

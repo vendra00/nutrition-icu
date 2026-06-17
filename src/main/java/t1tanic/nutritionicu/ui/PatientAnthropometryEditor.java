@@ -7,9 +7,6 @@ import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.NumberField;
-import java.time.LocalDate;
-import java.time.Period;
-import java.util.Locale;
 import t1tanic.nutritionicu.dto.NutritionMetrics;
 import t1tanic.nutritionicu.model.Patient;
 import t1tanic.nutritionicu.service.NutritionService;
@@ -36,8 +33,8 @@ public class PatientAnthropometryEditor extends Dialog {
         setHeaderTitle("Anthropometry · " + patient.getFullName());
         setWidth("420px");
 
-        add(new Span("Sex: " + patient.getSex() + "  ·  Age: " + ageText(patient)
-                + "  ·  Current weight: " + fmt(patient.getCurrentWeightKg()) + " kg"));
+        add(new Span("Sex: " + patient.getSex() + "  ·  Age: " + UiFormat.ageYears(patient)
+                + "  ·  Current weight: " + UiFormat.number(patient.getCurrentWeightKg()) + " kg"));
 
         setValueIfPresent(height, patient.getHeightCm());
         setValueIfPresent(usualWeight, patient.getUsualWeightKg());
@@ -73,26 +70,15 @@ public class PatientAnthropometryEditor extends Dialog {
         draft.setCurrentWeightKg(patient.getCurrentWeightKg());
 
         NutritionMetrics m = nutritionService.metricsFor(draft);
-        bmi.setText("BMI: " + fmt(m.bmi()));
-        ibw.setText("Ideal body weight: " + fmt(m.idealBodyWeightKg()) + " kg");
-        abw.setText("Adjusted body weight: " + fmt(m.adjustedBodyWeightKg()) + " kg");
-        loss.setText("Recent weight loss: " + fmt(m.weightLossPercent()) + " %");
+        bmi.setText("BMI: " + UiFormat.number(m.bmi()));
+        ibw.setText("Ideal body weight: " + UiFormat.number(m.idealBodyWeightKg()) + " kg");
+        abw.setText("Adjusted body weight: " + UiFormat.number(m.adjustedBodyWeightKg()) + " kg");
+        loss.setText("Recent weight loss: " + UiFormat.number(m.weightLossPercent()) + " %");
     }
 
     private static void setValueIfPresent(NumberField field, Double value) {
         if (value != null) {
             field.setValue(value);
         }
-    }
-
-    private static String ageText(Patient patient) {
-        if (patient.getBirthDate() == null) {
-            return "—";
-        }
-        return Period.between(patient.getBirthDate(), LocalDate.now()).getYears() + " yrs";
-    }
-
-    private static String fmt(Double value) {
-        return value == null ? "—" : String.format(Locale.US, "%.1f", value);
     }
 }

@@ -2,8 +2,7 @@ package t1tanic.nutritionicu.config;
 
 import java.time.LocalDate;
 import java.util.List;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -23,12 +22,11 @@ import t1tanic.nutritionicu.service.NutritionService;
  * every ingested patient as monitored so alert/insight features have a live cohort.
  * Runs after ingestion. Disable with {@code app.sandbox.seed=false}.
  */
+@Slf4j
 @Component
 @Order(2)
 @ConditionalOnProperty(name = "app.sandbox.seed", havingValue = "true", matchIfMissing = true)
 public class SandboxInitializer implements ApplicationRunner {
-
-    private static final Logger log = LoggerFactory.getLogger(SandboxInitializer.class);
 
     private final PatientRepository patientRepository;
     private final DoctorRepository doctorRepository;

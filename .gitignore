@@ -46,6 +46,8 @@ node_modules/
 # generated frontend (TS imports, theme, etc.)
 frontend/generated/
 src/main/frontend/generated/
+# Vaadin-generated app shell (regenerated on build if missing)
+src/main/frontend/index.html
 # generated production bundles
 frontend/bundles/
 src/main/bundles/

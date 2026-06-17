@@ -1,7 +1,6 @@
 package t1tanic.nutritionicu.service;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -96,9 +95,7 @@ public class AlertServiceImpl implements AlertService {
     @Override
     @Transactional(readOnly = true)
     public List<AlertSummary> recentAlerts() {
-        return alertRepository.findAll().stream()
-                .sorted(Comparator.comparing(Alert::getCreatedAt,
-                        Comparator.nullsLast(Comparator.reverseOrder())))
+        return alertRepository.findAllByOrderByCreatedAtDescIdDesc().stream()
                 .map(alert -> new AlertSummary(
                         alert.getId(),
                         alert.getSeverity().name(),

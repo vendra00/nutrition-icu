@@ -10,4 +10,7 @@ public interface AlertRepository extends JpaRepository<Alert, Long> {
     List<Alert> findByStatus(AlertStatus status);
 
     List<Alert> findByPatientId(Long patientId);
+
+    /** All alerts, newest first — most recently created leads, ties broken by id. */
+    List<Alert> findAllByOrderByCreatedAtDescIdDesc();
 }

@@ -8,7 +8,6 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import java.time.LocalDate;
-import java.util.Locale;
 import t1tanic.nutritionicu.model.Patient;
 import t1tanic.nutritionicu.repo.PatientRepository;
 import t1tanic.nutritionicu.service.NutritionService;
@@ -41,9 +40,9 @@ public class PatientsView extends VerticalLayout {
         grid.addColumn(p -> p.isMonitored() ? "Yes" : "No").setHeader("Monitored").setAutoWidth(true);
         grid.addColumn(p -> dateText(p.getAdmissionDate())).setHeader("Admitted").setAutoWidth(true);
         grid.addColumn(p -> dateText(p.getDischargeDate())).setHeader("Discharged").setAutoWidth(true);
-        grid.addColumn(p -> num(p.getHeightCm())).setHeader("Height (cm)").setAutoWidth(true);
-        grid.addColumn(p -> num(p.getCurrentWeightKg())).setHeader("Weight (kg)").setAutoWidth(true);
-        grid.addColumn(p -> num(nutritionService.metricsFor(p).bmi())).setHeader("BMI").setAutoWidth(true);
+        grid.addColumn(p -> UiFormat.number(p.getHeightCm())).setHeader("Height (cm)").setAutoWidth(true);
+        grid.addColumn(p -> UiFormat.number(p.getCurrentWeightKg())).setHeader("Weight (kg)").setAutoWidth(true);
+        grid.addColumn(p -> UiFormat.number(nutritionService.metricsFor(p).bmi())).setHeader("BMI").setAutoWidth(true);
         grid.addComponentColumn(this::actions).setHeader("").setAutoWidth(true);
 
         grid.setItems(patientRepository.findAll());
@@ -61,11 +60,7 @@ public class PatientsView extends VerticalLayout {
         grid.setItems(patientRepository.findAll());
     }
 
-    private static String num(Double value) {
-        return value == null ? "—" : String.format(Locale.US, "%.1f", value);
-    }
-
     private static String dateText(LocalDate date) {
-        return date == null ? "—" : date.toString();
+        return date == null ? UiFormat.EMPTY : date.toString();
     }
 }

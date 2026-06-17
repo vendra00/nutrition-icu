@@ -13,10 +13,9 @@ import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.rendering.ImageType;
 import org.apache.pdfbox.rendering.PDFRenderer;
 import org.apache.pdfbox.text.PDFTextStripper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import lombok.extern.slf4j.Slf4j;
+import t1tanic.nutritionicu.config.AppProperties;
 
 /**
  * Extracts plain text from a lab-report PDF.
@@ -25,10 +24,9 @@ import org.springframework.stereotype.Component;
  * fast and exact, no digit-mangling. If a PDF turns out to be image-only (scanned),
  * the extracted text is effectively empty and we fall back to Tesseract OCR.
  */
+@Slf4j
 @Component
 public class PdfTextExtractor {
-
-    private static final Logger log = LoggerFactory.getLogger(PdfTextExtractor.class);
 
     /** Below this many non-whitespace chars we treat the text layer as absent. */
     private static final int MIN_TEXT_LAYER_CHARS = 20;
@@ -36,13 +34,11 @@ public class PdfTextExtractor {
     /** Render DPI for the OCR fallback; 300 is the usual sweet spot for documents. */
     private static final int OCR_DPI = 300;
 
-    /** tessdata directory (folder containing e.g. cat.traineddata). Optional. */
-    @Value("${app.ocr.tessdata-path:}")
-    private String tessdataPath;
+    private final AppProperties.Ocr ocr;
 
-    /** Tesseract language(s) for the fallback; Catalan + Spanish for these reports. */
-    @Value("${app.ocr.language:cat+spa}")
-    private String ocrLanguage;
+    public PdfTextExtractor(AppProperties properties) {
+        this.ocr = properties.ocr();
+    }
 
     /**
      * Returns the full text of the PDF, using OCR only if the text layer is missing.
@@ -72,10 +68,10 @@ public class PdfTextExtractor {
 
     private String ocr(PDDocument document) throws IOException {
         Tesseract tesseract = new Tesseract();
-        if (tessdataPath != null && !tessdataPath.isBlank()) {
-            tesseract.setDatapath(tessdataPath);
+        if (ocr.tessdataPath() != null && !ocr.tessdataPath().isBlank()) {
+            tesseract.setDatapath(ocr.tessdataPath());
         }
-        tesseract.setLanguage(ocrLanguage);
+        tesseract.setLanguage(ocr.language());
 
         PDFRenderer renderer = new PDFRenderer(document);
         List<String> pages = new ArrayList<>();
