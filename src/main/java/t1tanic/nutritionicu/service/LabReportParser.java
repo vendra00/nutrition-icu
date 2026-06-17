@@ -30,10 +30,17 @@ import t1tanic.nutritionicu.model.enums.Unit;
 /**
  * Parses the plain text of a Vall d'Hebron lab report into a {@link ParsedReport}.
  *
- * <p>Reports are assembled dynamically per doctor's order, so the parser is driven
- * by the document's own structure: an ALL-CAPS heading opens a category or section,
- * each result row is {@code name [flag] value [unit] [low - high]}, and a
- * "Resultats revisats i validats per:" line closes a section.
+ * <p>Two report layouts are supported, detected from the document text:
+ * <ul>
+ *   <li><b>Classic</b> — a compact Catalan header ({@code Pacient:}, {@code Petició:}, …)
+ *       and bare ALL-CAPS lines opening categories/sections.</li>
+ *   <li><b>Modern</b> — a bilingual Catalan/Spanish header ({@code Nom i cognoms /
+ *       Nombre y apellidos:}, …) with explicit {@code Laboratorio:} (category) and
+ *       {@code Sección:} (section) labels.</li>
+ * </ul>
+ *
+ * <p>Both share the same result-row grammar — {@code name [flag] value [unit] [low - high]} —
+ * so {@link #parseResult} and the value/date converters are reused across layouts.
  */
 @Slf4j
 @Component
@@ -71,6 +78,41 @@ public class LabReportParser {
     private static final Pattern HEADER_FIELD =
             Pattern.compile("(" + LABELS + ")\\s*:\\s*(.*?)\\s*(?=(?:" + LABELS + ")\\s*:|$)");
 
+    // ---- Modern layout (bilingual Catalan/Spanish) -----------------------
+    // Single-field labels matched anywhere in the header block. The Spanish half of
+    // each "Català / Castellano:" label is used as the anchor — it's the most stable.
+    private static final Pattern M_ORDER =
+            Pattern.compile("Número de petició del laboratori / Número de petición:\\s*(\\d+)");
+    private static final Pattern M_NAME = Pattern.compile("Nombre y apellidos:\\s*(.+)");
+    private static final Pattern M_BIRTH_SEX =
+            Pattern.compile("Fecha de nacimiento:\\s*(\\d{1,2}/\\d{1,2}/\\d{2,4})\\s+Sexe / Sexo:\\s*(\\S+)");
+    // NHC appears as "NHC / Nº de 20907272" (first page) or "NHC / Nº de Historia Clínica : 20907272".
+    private static final Pattern M_NHC = Pattern.compile("NHC[^\\d]{0,40}?(\\d{6,})");
+    private static final Pattern M_CIP = Pattern.compile("CIP-AUT:\\s*([A-Za-z0-9]+)");
+    private static final Pattern M_CENTER = Pattern.compile("Centro de salud:\\s*(.+)");
+    private static final Pattern M_PHYSICIAN = Pattern.compile("Nombre del profesional:\\s*(.+)");
+    private static final Pattern M_DEPARTMENT = Pattern.compile("Servicio solicitante:\\s*(.+)");
+    private static final Pattern M_DATETIME = Pattern.compile("(\\d{1,2}/\\d{1,2}/\\d{2,4}\\s+\\d{1,2}:\\d{2}:\\d{2})");
+    private static final Pattern M_RECEPTION =
+            Pattern.compile("recepción de la petición:\\s*" + M_DATETIME.pattern());
+    // The header signature carries seconds (e.g. 21:47:46); per-section ones don't,
+    // so requiring seconds naturally targets the report-level finalization time.
+    private static final Pattern M_SIGNATURE =
+            Pattern.compile("Fecha y hora de firma:\\s*" + M_DATETIME.pattern());
+    private static final Pattern M_VALIDATED_BY =
+            Pattern.compile("Resultats revisats i validats per / Nombre del responsable:\\s*(.*)$");
+    private static final String M_CATEGORY_LABEL = "Laboratorio:";
+    private static final String M_SECTION_LABEL = "Sección:";
+
+    /** Modern-layout structural lines (page headers, metadata, column titles) carrying no result data. */
+    private static final List<String> MODERN_NOISE_PREFIXES = List.of(
+            "Centre /", "Adreça /", "Municipi /", "País /", "Telèfon /", "Domicili", "Codi postal",
+            "Provincia", "Tipus de document", "Informe de Laboratori", "Número de petició",
+            "Data d'obtenció", "Data i hora", "Dades pacient", "Dades sol·licitant", "Servei de salut",
+            "Centre de salut", "Servei sol·licitant", "Servei Responsable", "Responsables àrea",
+            "Nom del professional", "Categoria professional", "Tipus de mostra", "Número de la mostra",
+            "Nom i cognoms", "D.naixement", "NHC /", "CIP-", "Prova", "Determinación");
+
     private static final Map<String, Integer> CATALAN_MONTHS = Map.ofEntries(
             Map.entry("gener", 1), Map.entry("febrer", 2), Map.entry("març", 3),
             Map.entry("abril", 4), Map.entry("maig", 5), Map.entry("juny", 6),
@@ -93,11 +135,21 @@ public class LabReportParser {
         report.setSourceFilename(sourceFilename);
         report.setPatient(patient);
 
-        int bodyStart = parseHeader(lines, patient, report);
-        parseBody(lines, bodyStart, report);
+        if (isModernLayout(text)) {
+            int bodyStart = parseHeaderModern(lines, text, patient, report);
+            parseBodyModern(lines, bodyStart, report);
+        } else {
+            int bodyStart = parseHeader(lines, patient, report);
+            parseBody(lines, bodyStart, report);
+        }
         stampObservedAt(report);
 
         return new ParsedReport(patient, report);
+    }
+
+    /** The modern layout is identified by its distinctive laboratory-order label. */
+    private static boolean isModernLayout(String text) {
+        return text.contains("Número de petició del laboratori");
     }
 
     /**
@@ -216,6 +268,126 @@ public class LabReportParser {
         }
     }
 
+    // ---- Modern layout ----------------------------------------------------
+
+    /** Parses the bilingual header block and returns the index where the result body starts. */
+    private int parseHeaderModern(List<String> lines, String text, Patient patient, LabReport report) {
+        int bodyStart = indexOfModernCategory(lines);
+        String header = String.join("\n", lines.subList(0, bodyStart));
+
+        patient.setFullName(group(M_NAME, header));
+        patient.setMedicalRecordNumber(group(M_NHC, header));
+        patient.setHealthCardId(group(M_CIP, header));
+        Matcher birthSex = M_BIRTH_SEX.matcher(header);
+        if (birthSex.find()) {
+            patient.setBirthDate(parseDate(birthSex.group(1)));
+            patient.setSex(parseSex(birthSex.group(2)));
+        }
+
+        report.setOrderNumber(group(M_ORDER, header));
+        report.setCenter(group(M_CENTER, header));
+        report.setRequestingPhysician(group(M_PHYSICIAN, header));
+        report.setDepartment(group(M_DEPARTMENT, header));
+        report.setReceptionAt(parseDateTime(group(M_RECEPTION, header)));
+        report.setFinalizationAt(parseDateTime(group(M_SIGNATURE, header)));
+        report.setReportDate(parseReportDate(text));
+        report.setAgeYearsAtReport(resolveAge(null, patient.getBirthDate(), report));
+
+        return bodyStart;
+    }
+
+    private void parseBodyModern(List<String> lines, int start, LabReport report) {
+        String currentCategory = null;
+        ReportSection currentSection = null;
+        int sectionSeq = 0;
+        int resultSeq = 0;
+        boolean expectSectionName = false;
+
+        for (int i = start; i < lines.size(); i++) {
+            String line = lines.get(i);
+            if (isNoise(line) || isDecisionLimitAnnotation(line)) {
+                continue;
+            }
+
+            if (line.startsWith(M_CATEGORY_LABEL)) {
+                currentCategory = line.substring(M_CATEGORY_LABEL.length()).strip();
+                currentSection = null; // the section under it opens next
+                expectSectionName = false;
+                continue;
+            }
+            if (line.startsWith(M_SECTION_LABEL)) {
+                // The section name usually sits on a following line; capture it inline if present.
+                String inline = line.substring(M_SECTION_LABEL.length()).strip();
+                if (inline.isEmpty()) {
+                    expectSectionName = true;
+                } else {
+                    currentSection = openSection(report, currentCategory, inline, sectionSeq++);
+                    resultSeq = 0;
+                }
+                continue;
+            }
+
+            Matcher validated = M_VALIDATED_BY.matcher(line);
+            if (validated.find()) {
+                if (currentSection != null) {
+                    String by = validated.group(1).strip();
+                    currentSection.setValidatedBy(by.isEmpty() ? null : by);
+                }
+                expectSectionName = false;
+                continue;
+            }
+
+            if (expectSectionName) {
+                currentSection = openSection(report, currentCategory, line, sectionSeq++);
+                resultSeq = 0;
+                expectSectionName = false;
+                continue;
+            }
+
+            LabResult result = parseResult(line);
+            if (result != null && currentSection != null) {
+                result.setSequence(resultSeq++);
+                currentSection.addResult(result);
+            }
+        }
+    }
+
+    private ReportSection openSection(LabReport report, String category, String name, int sequence) {
+        ReportSection section = new ReportSection(category, name);
+        section.setSequence(sequence);
+        report.addSection(section);
+        return section;
+    }
+
+    /**
+     * Some analytes (e.g. cholesterol, triglycerides) are followed by clinical decision-limit
+     * notes like "Població adulta &lt; 200 mg/dL &gt;= 240 mg/dL" or "2-9 anys &gt;= 100 mg/dL".
+     * These aren't patient measurements; they're recognised by a space-delimited comparison
+     * operator (a real result attaches its operator to the value, e.g. {@code >90}).
+     */
+    private static boolean isDecisionLimitAnnotation(String line) {
+        return line.startsWith("Població") || line.matches(".*\\s[<>]=?\\s.*");
+    }
+
+    private static int indexOfModernCategory(List<String> lines) {
+        for (int i = 0; i < lines.size(); i++) {
+            if (lines.get(i).startsWith(M_CATEGORY_LABEL)) {
+                return i;
+            }
+        }
+        return lines.size();
+    }
+
+    /** First capturing group of the first match, stripped, or null if absent/blank. */
+    private static String group(Pattern pattern, String text) {
+        Matcher m = pattern.matcher(text);
+        if (!m.find()) {
+            return null;
+        }
+        String value = m.group(1).strip();
+        return value.isEmpty() ? null : value;
+    }
+
     /** Parses one result row, or returns null if the line isn't a measurement. */
     private LabResult parseResult(String line) {
         String[] tokens = line.split("\\s+");
@@ -314,7 +486,7 @@ public class LabReportParser {
                 || line.startsWith("www.") || line.startsWith("http")) {
             return true;
         }
-        return false;
+        return MODERN_NOISE_PREFIXES.stream().anyMatch(line::startsWith);
     }
 
     // ---- Value / type conversion -----------------------------------------
