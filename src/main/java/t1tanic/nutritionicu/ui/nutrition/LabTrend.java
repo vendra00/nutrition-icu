@@ -1,4 +1,5 @@
-package t1tanic.nutritionicu.ui;
+package t1tanic.nutritionicu.ui.nutrition;
+import t1tanic.nutritionicu.ui.common.UiFormat;
 
 import java.math.BigDecimal;
 import java.util.List;

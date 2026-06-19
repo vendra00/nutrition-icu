@@ -1,4 +1,4 @@
-package t1tanic.nutritionicu.ui;
+package t1tanic.nutritionicu.ui.nutrition;
 
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;

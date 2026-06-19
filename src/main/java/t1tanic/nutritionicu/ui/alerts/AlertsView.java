@@ -1,4 +1,5 @@
-package t1tanic.nutritionicu.ui;
+package t1tanic.nutritionicu.ui.alerts;
+import t1tanic.nutritionicu.ui.MainLayout;
 
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.H2;

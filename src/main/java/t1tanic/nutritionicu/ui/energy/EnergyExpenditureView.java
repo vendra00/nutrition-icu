@@ -1,4 +1,6 @@
-package t1tanic.nutritionicu.ui;
+package t1tanic.nutritionicu.ui.energy;
+import t1tanic.nutritionicu.ui.common.UiFormat;
+import t1tanic.nutritionicu.ui.MainLayout;
 
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.details.Details;
@@ -114,10 +116,12 @@ public class EnergyExpenditureView extends VerticalLayout {
         regimenResults.setSpacing(false);
         regimenResults.getStyle().set("gap", "var(--lumo-space-s)");
 
+        categoryBox.getStyle().set("margin-right", "var(--lumo-space-xl)");
         HorizontalLayout selectors = new HorizontalLayout(categoryBox, productBox);
         selectors.setPadding(false);
+        selectors.setSpacing(true);
+        selectors.getThemeList().add("spacing-xl");
         selectors.setAlignItems(FlexComponent.Alignment.START);
-        selectors.getStyle().set("gap", "var(--lumo-space-xl)");
         VerticalLayout nutritionContent = new VerticalLayout(selectors, regimenResults);
         nutritionContent.setPadding(false);
         nutritionContent.setSpacing(false);

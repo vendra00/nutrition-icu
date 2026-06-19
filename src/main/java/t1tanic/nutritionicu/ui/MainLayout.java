@@ -9,6 +9,14 @@ import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.sidenav.SideNav;
 import com.vaadin.flow.component.sidenav.SideNavItem;
 import com.vaadin.flow.theme.lumo.LumoUtility;
+import t1tanic.nutritionicu.ui.alerts.AlertsView;
+import t1tanic.nutritionicu.ui.analytics.AnalyticsView;
+import t1tanic.nutritionicu.ui.dashboard.DashboardView;
+import t1tanic.nutritionicu.ui.doctors.DoctorsView;
+import t1tanic.nutritionicu.ui.energy.EnergyExpenditureView;
+import t1tanic.nutritionicu.ui.insights.InsightsView;
+import t1tanic.nutritionicu.ui.nutrition.NutritionView;
+import t1tanic.nutritionicu.ui.patients.PatientsView;
 
 /**
  * App shell: a header with a drawer toggle and a left-side navigation listing the

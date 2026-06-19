@@ -1,4 +1,4 @@
-package t1tanic.nutritionicu.ui;
+package t1tanic.nutritionicu.ui.nutrition;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import t1tanic.nutritionicu.model.LabResult;
-import t1tanic.nutritionicu.ui.MetabolicInterpreter.Interpretation;
+import t1tanic.nutritionicu.ui.nutrition.MetabolicInterpreter.Interpretation;
 
 /** Verifies the clinical reading of {@link MetabolicInterpreter} without rendering any UI. */
 class MetabolicInterpreterTest {

@@ -1,4 +1,5 @@
-package t1tanic.nutritionicu.ui;
+package t1tanic.nutritionicu.ui.insights;
+import t1tanic.nutritionicu.ui.MainLayout;
 
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.Paragraph;

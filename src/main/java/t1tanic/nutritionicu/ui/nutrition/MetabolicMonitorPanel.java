@@ -1,4 +1,5 @@
-package t1tanic.nutritionicu.ui;
+package t1tanic.nutritionicu.ui.nutrition;
+import t1tanic.nutritionicu.ui.common.TrendChart;
 
 import com.vaadin.flow.component.Composite;
 import com.vaadin.flow.component.html.Div;
@@ -10,7 +11,7 @@ import java.util.List;
 import t1tanic.nutritionicu.model.LabResult;
 import t1tanic.nutritionicu.model.Patient;
 import t1tanic.nutritionicu.repo.LabResultRepository;
-import t1tanic.nutritionicu.ui.MetabolicInterpreter.Interpretation;
+import t1tanic.nutritionicu.ui.nutrition.MetabolicInterpreter.Interpretation;
 
 /**
  * Metabolic monitoring panel for the nutrition protocol's "Laboratorio" step.

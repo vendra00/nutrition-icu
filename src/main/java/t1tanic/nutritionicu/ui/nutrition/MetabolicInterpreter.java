@@ -1,4 +1,4 @@
-package t1tanic.nutritionicu.ui;
+package t1tanic.nutritionicu.ui.nutrition;
 
 /**
  * Plain-language reading of a patient's metabolic phase and anabolic recovery from the inflammatory

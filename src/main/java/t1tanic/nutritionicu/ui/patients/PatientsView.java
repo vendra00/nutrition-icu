@@ -1,4 +1,6 @@
-package t1tanic.nutritionicu.ui;
+package t1tanic.nutritionicu.ui.patients;
+import t1tanic.nutritionicu.ui.common.UiFormat;
+import t1tanic.nutritionicu.ui.MainLayout;
 
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.button.Button;

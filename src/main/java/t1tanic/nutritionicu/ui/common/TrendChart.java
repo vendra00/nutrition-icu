@@ -1,4 +1,4 @@
-package t1tanic.nutritionicu.ui;
+package t1tanic.nutritionicu.ui.common;
 
 import com.vaadin.flow.component.Composite;
 import com.vaadin.flow.component.html.Div;
