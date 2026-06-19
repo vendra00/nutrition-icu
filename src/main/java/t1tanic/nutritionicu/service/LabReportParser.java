@@ -305,7 +305,7 @@ public class LabReportParser {
 
         for (int i = start; i < lines.size(); i++) {
             String line = lines.get(i);
-            if (isNoise(line) || isDecisionLimitAnnotation(line)) {
+            if (isNoise(line)) {
                 continue;
             }
 
@@ -344,6 +344,9 @@ public class LabReportParser {
                 continue;
             }
 
+            if (isNonResultText(line)) {
+                continue;
+            }
             LabResult result = parseResult(line);
             if (result != null && currentSection != null) {
                 result.setSequence(resultSeq++);
@@ -360,13 +363,21 @@ public class LabReportParser {
     }
 
     /**
-     * Some analytes (e.g. cholesterol, triglycerides) are followed by clinical decision-limit
-     * notes like "Població adulta &lt; 200 mg/dL &gt;= 240 mg/dL" or "2-9 anys &gt;= 100 mg/dL".
-     * These aren't patient measurements; they're recognised by a space-delimited comparison
-     * operator (a real result attaches its operator to the value, e.g. {@code >90}).
+     * Explanatory text that some analytes carry but which isn't a measurement — checked only
+     * after the structural (category/section/validated) lines have been handled, so the colon
+     * rule below is safe. Covers:
+     * <ul>
+     *   <li>decision-limit notes, e.g. "Població adulta &lt; 200 mg/dL" or "2-9 anys &gt;= 100 mg/dL"
+     *       (a space-delimited comparison operator; a real result attaches it, e.g. {@code >90});</li>
+     *   <li>prose footnotes/references, e.g. the CKD-EPI eGFR staging notes
+     *       ("El valor estimat de FG…", "En persones de raça negra…pel factor: 1.159") — these
+     *       contain a colon, which real result rows never do.</li>
+     * </ul>
      */
-    private static boolean isDecisionLimitAnnotation(String line) {
-        return line.startsWith("Població") || line.matches(".*\\s[<>]=?\\s.*");
+    private static boolean isNonResultText(String line) {
+        return line.startsWith("Població")
+                || line.contains(":")
+                || line.matches(".*\\s[<>]=?\\s.*");
     }
 
     private static int indexOfModernCategory(List<String> lines) {
@@ -409,7 +420,9 @@ public class LabReportParser {
             nameEnd = valueIdx - 1;
         }
         String name = String.join(" ", Arrays.copyOfRange(tokens, 0, nameEnd)).strip();
-        if (name.isEmpty()) {
+        // A real analyte name always contains letters; this rejects stray table rows like
+        // "5 <15 Fallida renal" (from the eGFR staging footnote) that otherwise look numeric.
+        if (name.chars().noneMatch(Character::isLetter)) {
             return null;
         }
 

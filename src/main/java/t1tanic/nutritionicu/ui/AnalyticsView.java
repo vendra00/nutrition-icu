@@ -12,7 +12,9 @@ import java.math.BigDecimal;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import t1tanic.nutritionicu.model.LabResult;
 import t1tanic.nutritionicu.model.Patient;
@@ -29,9 +31,20 @@ public class AnalyticsView extends VerticalLayout {
     private final AnalyteCatalog analyteCatalog;
 
     private final ComboBox<Patient> patientBox = new ComboBox<>("Patient");
-    private final ComboBox<String> analyteBox = new ComboBox<>("Analyte");
+    private final ComboBox<AnalyteOption> analyteBox = new ComboBox<>("Analyte");
     private final Div chartHolder = new Div();
     private final Grid<LabResult> grid = new Grid<>(LabResult.class, false);
+
+    /**
+     * A pickable analyte. Canonicalised labels are identified by their {@code code} and
+     * aggregate every raw-label synonym (e.g. plasma {@code Pla-} and serum {@code Srm-}
+     * variants) into one series; labels not yet in the catalog fall back to a single raw name.
+     */
+    private record AnalyteOption(String label, String code, String rawName) {
+        boolean byCode() {
+            return code != null;
+        }
+    }
 
     public AnalyticsView(PatientRepository patientRepository,
                          LabResultRepository resultRepository,
@@ -46,8 +59,7 @@ public class AnalyticsView extends VerticalLayout {
         patientBox.setItemLabelGenerator(p -> p.getFullName() + " (" + p.getMedicalRecordNumber() + ")");
         patientBox.addValueChangeListener(e -> onPatientSelected(e.getValue()));
 
-        // Items are the raw (Catalan) analyte names used for querying; show English labels.
-        analyteBox.setItemLabelGenerator(analyteCatalog::displayName);
+        analyteBox.setItemLabelGenerator(AnalyteOption::label);
         analyteBox.setEnabled(false);
         analyteBox.addValueChangeListener(e -> renderSeries());
 
@@ -72,23 +84,39 @@ public class AnalyticsView extends VerticalLayout {
             analyteBox.setEnabled(false);
             return;
         }
-        List<String> analytes = new ArrayList<>(resultRepository.findDistinctAnalyteNames(patient.getId()));
-        analytes.sort(Comparator.comparing(analyteCatalog::displayName, String.CASE_INSENSITIVE_ORDER));
-        analyteBox.setItems(analytes);
+        analyteBox.setItems(buildOptions(resultRepository.findDistinctAnalyteNames(patient.getId())));
         analyteBox.setEnabled(true);
+    }
+
+    /** Collapses raw analyte labels into one option per canonical code (synonyms merged). */
+    private List<AnalyteOption> buildOptions(List<String> rawNames) {
+        Map<String, AnalyteOption> byCode = new LinkedHashMap<>();
+        List<AnalyteOption> options = new ArrayList<>();
+        for (String raw : rawNames) {
+            String code = analyteCatalog.codeFor(raw);
+            if (code == null) {
+                options.add(new AnalyteOption(analyteCatalog.displayName(raw), null, raw));
+            } else {
+                byCode.computeIfAbsent(code, c -> new AnalyteOption(analyteCatalog.displayName(raw), c, null));
+            }
+        }
+        options.addAll(byCode.values());
+        options.sort(Comparator.comparing(AnalyteOption::label, String.CASE_INSENSITIVE_ORDER));
+        return options;
     }
 
     private void renderSeries() {
         chartHolder.removeAll();
         Patient patient = patientBox.getValue();
-        String analyte = analyteBox.getValue();
+        AnalyteOption analyte = analyteBox.getValue();
         if (patient == null || analyte == null) {
             grid.setItems(List.of());
             return;
         }
 
-        List<LabResult> series =
-                resultRepository.findByPatientIdAndAnalyteNameOrderByObservedAtAsc(patient.getId(), analyte);
+        List<LabResult> series = analyte.byCode()
+                ? resultRepository.findByPatientIdAndAnalyteCodeOrderByObservedAtAsc(patient.getId(), analyte.code())
+                : resultRepository.findByPatientIdAndAnalyteNameOrderByObservedAtAsc(patient.getId(), analyte.rawName());
         grid.setItems(series);
 
         List<TrendChart.Point> points = series.stream()

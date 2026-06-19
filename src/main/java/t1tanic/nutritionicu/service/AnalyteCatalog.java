@@ -104,6 +104,8 @@ public class AnalyteCatalog {
             Map.entry("Srm-Transtiretina (prealbumina)", new CanonicalAnalyte("PREALBUMIN", "Prealbumin (transthyretin)")),
             Map.entry("Srm-Colesterol", new CanonicalAnalyte("CHOLESTEROL", "Cholesterol (total)")),
             Map.entry("Srm-Triglicèrid", new CanonicalAnalyte("TRIGLYCERIDES", "Triglycerides")),
+            Map.entry("Srm-Urat", new CanonicalAnalyte("URATE", "Urate (uric acid)")),
+            Map.entry("Srm-Alfa-amilasa pancreàtica", new CanonicalAnalyte("PANCREATIC_AMYLASE", "Pancreatic amylase")),
             // Blood gas (POCT)
             Map.entry("vSan-Plasma; ió Sodi", new CanonicalAnalyte("SODIUM", "Sodium (blood gas)")),
             Map.entry("vSan-Plasma; ió Potassi", new CanonicalAnalyte("POTASSIUM", "Potassium (blood gas)")),
