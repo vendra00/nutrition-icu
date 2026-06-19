@@ -3,6 +3,9 @@ package t1tanic.nutritionicu.ui;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.details.Details;
 import com.vaadin.flow.component.formlayout.FormLayout;
+import com.vaadin.flow.component.grid.ColumnTextAlign;
+import com.vaadin.flow.component.grid.Grid;
+import com.vaadin.flow.component.grid.GridVariant;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.Span;
@@ -14,6 +17,8 @@ import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 import t1tanic.nutritionicu.dto.EnergyExpenditureResult;
 import t1tanic.nutritionicu.dto.NutritionRegimen;
 import t1tanic.nutritionicu.model.NutritionProduct;
@@ -208,33 +213,12 @@ public class EnergyExpenditureView extends VerticalLayout {
 
         NutritionRegimen plan = regimenCalculator.calculate(lastEnergy, lastActualWeightKg, product);
 
-        Span rate = new Span("Infusion: %d ml/h  (%d ml/day, %s kcal/ml)".formatted(
+        String osm = product.getOsmolarity() == null ? "" : ", " + product.getOsmolarity() + " mOsm/l";
+        Span rate = new Span("Infusion: %d ml/h  (%d ml/day, %s kcal/ml%s)".formatted(
                 plan.infusionMlPerHour(), plan.dailyVolumeMl(),
-                UiFormat.number(product.getDensityKcalPerMl())));
+                UiFormat.number(product.getDensityKcalPerMl()), osm));
         rate.getElement().getThemeList().add("badge primary");
         rate.getStyle().set("font-size", "var(--lumo-font-size-l)").set("white-space", "normal");
-
-        FormLayout macros = new FormLayout();
-        macros.addFormItem(new Span("%d g  (%d%%)".formatted(plan.proteinG(), plan.proteinPercent())),
-                "Protein");
-        macros.addFormItem(new Span("%d g  (%d%%)".formatted(plan.carbG(), plan.carbPercent())),
-                "Carbohydrate");
-        macros.addFormItem(new Span("%d g  (%d%%)".formatted(plan.fatG(), plan.fatPercent())), "Fat");
-        macros.addFormItem(new Span("%s g".formatted(UiFormat.number(plan.nitrogenG()))), "Nitrogen");
-        if (plan.fiberApplicable()) {
-            macros.addFormItem(new Span("%s g".formatted(UiFormat.number(plan.fiberG()))), "Fibre");
-        }
-        macros.addFormItem(new Span(plan.product().getOsmolarity() == null
-                ? UiFormat.EMPTY : plan.product().getOsmolarity() + " mOsm/l"), "Osmolarity");
-
-        NutritionRegimen.Electrolytes el = plan.electrolytes();
-        FormLayout electrolytes = new FormLayout();
-        electrolytes.addFormItem(new Span("%s g".formatted(UiFormat.number(el.sodiumG()))), "Na");
-        electrolytes.addFormItem(new Span("%s g".formatted(UiFormat.number(el.potassiumG()))), "K");
-        electrolytes.addFormItem(new Span("%s g".formatted(UiFormat.number(el.chlorideG()))), "Cl");
-        electrolytes.addFormItem(new Span("%s g".formatted(UiFormat.number(el.calciumG()))), "Ca");
-        electrolytes.addFormItem(new Span("%s g".formatted(UiFormat.number(el.magnesiumG()))), "Mg");
-        electrolytes.addFormItem(new Span("%s g".formatted(UiFormat.number(el.phosphorusG()))), "P");
 
         Span proteinTarget = new Span(
                 "Protein target: %s g/day  (%s g/kg of %s)".formatted(
@@ -242,10 +226,12 @@ public class EnergyExpenditureView extends VerticalLayout {
                         UiFormat.number(plan.proteinTargetPerKg()), plan.proteinBasis()));
         proteinTarget.getStyle().set("white-space", "normal");
 
-        regimenResults.add(rate);
-        regimenResults.add(sectionLabel("Delivered over 24 h"), macros);
-        regimenResults.add(sectionLabel("Electrolytes (24 h)"), electrolytes);
-        regimenResults.add(proteinTarget);
+        HorizontalLayout tables = new HorizontalLayout(
+                new Div(sectionLabel("Delivered over 24 h"), macroGrid(plan)),
+                new Div(sectionLabel("Electrolytes (24 h)"), electrolyteGrid(plan.electrolytes())));
+        tables.getStyle().set("flex-wrap", "wrap").set("gap", "var(--lumo-space-l)");
+
+        regimenResults.add(rate, tables, proteinTarget);
         if (plan.proteinDeficitG() > 0) {
             Span deficit = new Span("Protein deficit vs target: %d g/day".formatted(plan.proteinDeficitG()));
             deficit.getElement().getThemeList().add("badge error");
@@ -257,6 +243,54 @@ public class EnergyExpenditureView extends VerticalLayout {
         }
     }
 
+    private record MacroRow(String nutrient, String amount, String share) {
+    }
+
+    private record ElectrolyteRow(String name, String amount) {
+    }
+
+    /** Macronutrients delivered over 24 h: amount and share of calories. */
+    private static Grid<MacroRow> macroGrid(NutritionRegimen plan) {
+        List<MacroRow> rows = new ArrayList<>(List.of(
+                new MacroRow("Protein", plan.proteinG() + " g", plan.proteinPercent() + "%"),
+                new MacroRow("Carbohydrate", plan.carbG() + " g", plan.carbPercent() + "%"),
+                new MacroRow("Fat", plan.fatG() + " g", plan.fatPercent() + "%"),
+                new MacroRow("Nitrogen", UiFormat.number(plan.nitrogenG()) + " g", "")));
+        if (plan.fiberApplicable()) {
+            rows.add(new MacroRow("Fibre", UiFormat.number(plan.fiberG()) + " g", ""));
+        }
+        Grid<MacroRow> grid = new Grid<>();
+        grid.addColumn(MacroRow::nutrient).setHeader("Nutrient").setAutoWidth(true).setFlexGrow(1);
+        grid.addColumn(MacroRow::amount).setHeader("Amount / 24 h")
+                .setTextAlign(ColumnTextAlign.END).setAutoWidth(true);
+        grid.addColumn(MacroRow::share).setHeader("% kcal")
+                .setTextAlign(ColumnTextAlign.END).setAutoWidth(true);
+        grid.setItems(rows);
+        grid.setAllRowsVisible(true);
+        grid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES, GridVariant.LUMO_COMPACT);
+        grid.setWidth("28em");
+        return grid;
+    }
+
+    /** Electrolytes delivered over 24 h, grams. */
+    private static Grid<ElectrolyteRow> electrolyteGrid(NutritionRegimen.Electrolytes el) {
+        Grid<ElectrolyteRow> grid = new Grid<>();
+        grid.addColumn(ElectrolyteRow::name).setHeader("Electrolyte").setAutoWidth(true).setFlexGrow(1);
+        grid.addColumn(ElectrolyteRow::amount).setHeader("g / 24 h")
+                .setTextAlign(ColumnTextAlign.END).setAutoWidth(true);
+        grid.setItems(
+                new ElectrolyteRow("Sodium (Na)", UiFormat.number(el.sodiumG())),
+                new ElectrolyteRow("Potassium (K)", UiFormat.number(el.potassiumG())),
+                new ElectrolyteRow("Chloride (Cl)", UiFormat.number(el.chlorideG())),
+                new ElectrolyteRow("Calcium (Ca)", UiFormat.number(el.calciumG())),
+                new ElectrolyteRow("Magnesium (Mg)", UiFormat.number(el.magnesiumG())),
+                new ElectrolyteRow("Phosphorus (P)", UiFormat.number(el.phosphorusG())));
+        grid.setAllRowsVisible(true);
+        grid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES, GridVariant.LUMO_COMPACT);
+        grid.setWidth("22em");
+        return grid;
+    }
+
     private static Span muted(String text) {
         Span span = new Span(text);
         span.getStyle().set("color", "var(--lumo-secondary-text-color)").set("white-space", "normal");
@@ -266,7 +300,8 @@ public class EnergyExpenditureView extends VerticalLayout {
     /** A bold sub-heading for a block within the regimen output. */
     private static Span sectionLabel(String text) {
         Span span = new Span(text);
-        span.getStyle().set("font-weight", "600").set("margin-top", "var(--lumo-space-s)");
+        span.getStyle().set("font-weight", "600").set("display", "block")
+                .set("margin-bottom", "var(--lumo-space-xs)");
         return span;
     }
 
