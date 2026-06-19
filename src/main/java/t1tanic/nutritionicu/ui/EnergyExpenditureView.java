@@ -112,7 +112,7 @@ public class EnergyExpenditureView extends VerticalLayout {
         applyCategoryFilter();
         regimenResults.setPadding(false);
         regimenResults.setSpacing(false);
-        regimenResults.getStyle().set("gap", "var(--lumo-space-xs)").set("margin-top", "var(--lumo-space-s)");
+        regimenResults.getStyle().set("gap", "var(--lumo-space-s)");
 
         HorizontalLayout selectors = new HorizontalLayout(categoryBox, productBox);
         selectors.setPadding(false);
@@ -121,6 +121,7 @@ public class EnergyExpenditureView extends VerticalLayout {
         VerticalLayout nutritionContent = new VerticalLayout(selectors, regimenResults);
         nutritionContent.setPadding(false);
         nutritionContent.setSpacing(false);
+        nutritionContent.getStyle().set("gap", "var(--lumo-space-l)").set("padding-top", "var(--lumo-space-s)");
 
         nutritionPanel.setSummaryText("Choose nutrition");
         nutritionPanel.add(nutritionContent);
@@ -173,21 +174,33 @@ public class EnergyExpenditureView extends VerticalLayout {
 
         Span total = new Span("GET (total): %d kcal/day".formatted(r.totalKcalPerDay()));
         total.getElement().getThemeList().add("badge primary");
-        total.getStyle().set("font-size", "var(--lumo-font-size-l)").set("white-space", "normal");
+        total.getStyle().set("font-size", "var(--lumo-font-size-l)").set("white-space", "normal")
+                .set("margin-bottom", "var(--lumo-space-s)");
 
-        FormLayout out = new FormLayout();
-        out.addFormItem(new Span("%d kcal/day".formatted(r.basalKcalPerDay())), "GEB (basal)");
-        out.addFormItem(new Span("%s kcal/kg/day".formatted(UiFormat.number(r.kcalPerKgPerDay()))),
-                "Per kg (actual weight)");
-        out.addFormItem(new Span(UiFormat.number(r.bmi())), "BMI");
-        out.addFormItem(new Span(weightBasis(r)), "Weight class");
-        out.addFormItem(new Span("%s kg".formatted(UiFormat.number(r.idealBodyWeightKg()))),
-                "Ideal body weight");
-        out.addFormItem(new Span("%s kg".formatted(UiFormat.number(r.weightUsedKg()))),
-                "Weight used in equation");
-
-        results.add(total, out);
+        results.add(total, energyGrid(r));
         renderRegimen();
+    }
+
+    private record MetricRow(String metric, String value) {
+    }
+
+    /** The Harris-Benedict result as a metric/value table. */
+    private static Grid<MetricRow> energyGrid(EnergyExpenditureResult r) {
+        Grid<MetricRow> grid = new Grid<>();
+        grid.addColumn(MetricRow::metric).setHeader("Metric").setAutoWidth(true).setFlexGrow(1);
+        grid.addColumn(MetricRow::value).setHeader("Value").setAutoWidth(true);
+        grid.setItems(
+                new MetricRow("GEB (basal)", r.basalKcalPerDay() + " kcal/day"),
+                new MetricRow("Per kg (actual weight)",
+                        UiFormat.number(r.kcalPerKgPerDay()) + " kcal/kg/day"),
+                new MetricRow("BMI", UiFormat.number(r.bmi())),
+                new MetricRow("Weight class", weightBasis(r)),
+                new MetricRow("Ideal body weight", UiFormat.number(r.idealBodyWeightKg()) + " kg"),
+                new MetricRow("Weight used in equation", UiFormat.number(r.weightUsedKg()) + " kg"));
+        grid.setAllRowsVisible(true);
+        grid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES, GridVariant.LUMO_COMPACT);
+        grid.setWidth("34em");
+        return grid;
     }
 
     /** Restricts the formula dropdown to the selected category, clearing a now-hidden selection. */
