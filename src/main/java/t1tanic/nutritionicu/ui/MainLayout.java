@@ -38,6 +38,7 @@ public class MainLayout extends AppLayout {
         nav.addItem(new SideNavItem("Alerts", AlertsView.class, VaadinIcon.BELL.create()));
         nav.addItem(new SideNavItem("Patients", PatientsView.class, VaadinIcon.USERS.create()));
         nav.addItem(new SideNavItem("Nutrition", NutritionView.class, VaadinIcon.CUTLERY.create()));
+        nav.addItem(new SideNavItem("Energy (HB)", EnergyExpenditureView.class, VaadinIcon.FIRE.create()));
         nav.addItem(new SideNavItem("Doctors", DoctorsView.class, VaadinIcon.DOCTOR.create()));
         nav.addItem(new SideNavItem("Analytics", AnalyticsView.class, VaadinIcon.CHART.create()));
         nav.addItem(new SideNavItem("Insights", InsightsView.class, VaadinIcon.LIGHTBULB.create()));
