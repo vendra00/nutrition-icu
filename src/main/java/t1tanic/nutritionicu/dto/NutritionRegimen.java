@@ -1,5 +1,7 @@
 package t1tanic.nutritionicu.dto;
 
+import t1tanic.nutritionicu.model.NutritionProduct;
+
 /**
  * A 24-hour administration plan for a chosen {@link NutritionProduct} that delivers a target
  * energy expenditure (GET), reproducing the rccc.eu "Pauta de administración" step.

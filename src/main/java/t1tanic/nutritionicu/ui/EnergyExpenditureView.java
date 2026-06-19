@@ -1,11 +1,13 @@
 package t1tanic.nutritionicu.ui;
 
 import com.vaadin.flow.component.combobox.ComboBox;
+import com.vaadin.flow.component.details.Details;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H2;
-import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.orderedlayout.FlexComponent;
+import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.radiobutton.RadioButtonGroup;
 import com.vaadin.flow.component.textfield.NumberField;
@@ -13,8 +15,8 @@ import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import java.time.LocalDate;
 import t1tanic.nutritionicu.dto.EnergyExpenditureResult;
-import t1tanic.nutritionicu.dto.NutritionProduct;
 import t1tanic.nutritionicu.dto.NutritionRegimen;
+import t1tanic.nutritionicu.model.NutritionProduct;
 import t1tanic.nutritionicu.model.Patient;
 import t1tanic.nutritionicu.model.enums.NutritionCategory;
 import t1tanic.nutritionicu.model.enums.Sex;
@@ -46,10 +48,10 @@ public class EnergyExpenditureView extends VerticalLayout {
     private final NumberField weightField = new NumberField("Weight (kg)");
     private final ComboBox<StressFactor> stressBox = new ComboBox<>("Stress degree");
     private final Div results = new Div();
-    private final Div nutritionSection = new Div();
+    private final Details nutritionPanel = new Details();
     private final RadioButtonGroup<NutritionCategory> categoryBox = new RadioButtonGroup<>("Type");
     private final ComboBox<NutritionProduct> productBox = new ComboBox<>("Nutrition formula");
-    private final Div regimenResults = new Div();
+    private final VerticalLayout regimenResults = new VerticalLayout();
 
     /** Last valid energy result and the actual weight behind it, for the nutrition step. */
     private EnergyExpenditureResult lastEnergy;
@@ -63,14 +65,14 @@ public class EnergyExpenditureView extends VerticalLayout {
         this.calculator = calculator;
         this.regimenCalculator = regimenCalculator;
         this.formulary = formulary;
-        setSizeFull();
+        setWidthFull();
         setPadding(true);
         add(new H2("Energy expenditure (Harris-Benedict)"));
 
+        // --- Panel 1: patient & inputs ---
         patientBox.setItems(patientRepository.findAll());
         patientBox.setItemLabelGenerator(p -> p.getFullName() + " (" + p.getMedicalRecordNumber() + ")");
         patientBox.addValueChangeListener(e -> prefill(e.getValue()));
-        add(patientBox);
 
         sexBox.setItems(Sex.MALE, Sex.FEMALE);
         sexBox.setItemLabelGenerator(s -> s == Sex.MALE ? "Male" : "Female");
@@ -79,37 +81,54 @@ public class EnergyExpenditureView extends VerticalLayout {
         stressBox.setValue(StressFactor.NO_STRESS);
 
         FormLayout inputs = new FormLayout(sexBox, ageField, heightField, weightField, stressBox);
-        add(inputs);
-
         sexBox.addValueChangeListener(e -> recompute());
         ageField.addValueChangeListener(e -> recompute());
         heightField.addValueChangeListener(e -> recompute());
         weightField.addValueChangeListener(e -> recompute());
         stressBox.addValueChangeListener(e -> recompute());
 
-        results.getStyle().set("margin-top", "var(--lumo-space-m)");
-        add(results);
+        VerticalLayout inputsContent = new VerticalLayout(patientBox, inputs);
+        inputsContent.setPadding(false);
+        Details inputsPanel = new Details("Patient & inputs", inputsContent);
+        inputsPanel.setOpened(true);
 
+        // --- Panel 2: energy expenditure result ---
+        Details resultPanel = new Details("Energy expenditure (GET)", results);
+        resultPanel.setOpened(true);
+
+        // --- Panel 3: nutrition (hidden until a complete energy result exists) ---
         categoryBox.setItems(NutritionCategory.values());
         categoryBox.setItemLabelGenerator(NutritionCategory::label);
         categoryBox.setValue(NutritionCategory.ENTERAL);
         categoryBox.addValueChangeListener(e -> applyCategoryFilter());
         productBox.setWidth("28em");
-        productBox.setItemLabelGenerator(NutritionProduct::name);
+        productBox.setItemLabelGenerator(NutritionProduct::getName);
         productBox.addValueChangeListener(e -> renderRegimen());
         applyCategoryFilter();
-        // Hidden until a complete energy result exists — the nutrition step comes after the GET.
-        nutritionSection.setVisible(false);
-        nutritionSection.add(new H3("Choose nutrition"), categoryBox, productBox, regimenResults);
-        add(nutritionSection);
+        regimenResults.setPadding(false);
+        regimenResults.setSpacing(false);
+        regimenResults.getStyle().set("gap", "var(--lumo-space-xs)").set("margin-top", "var(--lumo-space-s)");
+
+        HorizontalLayout selectors = new HorizontalLayout(categoryBox, productBox);
+        selectors.setPadding(false);
+        selectors.setAlignItems(FlexComponent.Alignment.START);
+        selectors.getStyle().set("gap", "var(--lumo-space-xl)");
+        VerticalLayout nutritionContent = new VerticalLayout(selectors, regimenResults);
+        nutritionContent.setPadding(false);
+        nutritionContent.setSpacing(false);
+
+        nutritionPanel.setSummaryText("Choose nutrition");
+        nutritionPanel.add(nutritionContent);
+        nutritionPanel.setOpened(true);
+        nutritionPanel.setVisible(false);
 
         Span note = new Span("Decision support only. Reproduces the rccc.eu Harris-Benedict "
                 + "calculator: total = basal × (0.1 activity + stress factor), with an obesity weight "
                 + "adjustment above BMI 30. The infusion rate delivers GET over 24 h.");
         note.getStyle().set("font-size", "var(--lumo-font-size-xs)")
                 .set("color", "var(--lumo-secondary-text-color)");
-        add(note);
 
+        add(inputsPanel, resultPanel, nutritionPanel, note);
         recompute();
     }
 
@@ -136,7 +155,7 @@ public class EnergyExpenditureView extends VerticalLayout {
         if (sex == null || stress == null || !positive(age) || !positive(height) || !positive(weight)) {
             results.add(new Span("Enter sex, age, height and weight to calculate."));
             lastEnergy = null;
-            nutritionSection.setVisible(false);
+            nutritionPanel.setVisible(false);
             renderRegimen();
             return;
         }
@@ -145,7 +164,7 @@ public class EnergyExpenditureView extends VerticalLayout {
                 sex, weight, height, age.intValue(), stress);
         lastEnergy = r;
         lastActualWeightKg = weight;
-        nutritionSection.setVisible(true);
+        nutritionPanel.setVisible(true);
 
         Span total = new Span("GET (total): %d kcal/day".formatted(r.totalKcalPerDay()));
         total.getElement().getThemeList().add("badge primary");
@@ -171,7 +190,7 @@ public class EnergyExpenditureView extends VerticalLayout {
         NutritionCategory category = categoryBox.getValue();
         productBox.clear();
         productBox.setItems(formulary.all().stream()
-                .filter(p -> p.category() == category)
+                .filter(p -> p.getCategory() == category)
                 .toList());
     }
 
@@ -191,7 +210,7 @@ public class EnergyExpenditureView extends VerticalLayout {
 
         Span rate = new Span("Infusion: %d ml/h  (%d ml/day, %s kcal/ml)".formatted(
                 plan.infusionMlPerHour(), plan.dailyVolumeMl(),
-                UiFormat.number(product.densityKcalPerMl())));
+                UiFormat.number(product.getDensityKcalPerMl())));
         rate.getElement().getThemeList().add("badge primary");
         rate.getStyle().set("font-size", "var(--lumo-font-size-l)").set("white-space", "normal");
 
@@ -205,8 +224,8 @@ public class EnergyExpenditureView extends VerticalLayout {
         if (plan.fiberApplicable()) {
             macros.addFormItem(new Span("%s g".formatted(UiFormat.number(plan.fiberG()))), "Fibre");
         }
-        macros.addFormItem(new Span(plan.product().osmolarity() == null
-                ? UiFormat.EMPTY : plan.product().osmolarity() + " mOsm/l"), "Osmolarity");
+        macros.addFormItem(new Span(plan.product().getOsmolarity() == null
+                ? UiFormat.EMPTY : plan.product().getOsmolarity() + " mOsm/l"), "Osmolarity");
 
         NutritionRegimen.Electrolytes el = plan.electrolytes();
         FormLayout electrolytes = new FormLayout();
@@ -224,8 +243,8 @@ public class EnergyExpenditureView extends VerticalLayout {
         proteinTarget.getStyle().set("white-space", "normal");
 
         regimenResults.add(rate);
-        regimenResults.add(new Span("Delivered over 24 h"), macros);
-        regimenResults.add(new Span("Electrolytes (24 h)"), electrolytes);
+        regimenResults.add(sectionLabel("Delivered over 24 h"), macros);
+        regimenResults.add(sectionLabel("Electrolytes (24 h)"), electrolytes);
         regimenResults.add(proteinTarget);
         if (plan.proteinDeficitG() > 0) {
             Span deficit = new Span("Protein deficit vs target: %d g/day".formatted(plan.proteinDeficitG()));
@@ -233,14 +252,21 @@ public class EnergyExpenditureView extends VerticalLayout {
             deficit.getStyle().set("white-space", "normal");
             regimenResults.add(new Div(deficit));
         }
-        if (product.indications() != null && !product.indications().isBlank()) {
-            regimenResults.add(muted("Indications: " + product.indications()));
+        if (product.getIndications() != null && !product.getIndications().isBlank()) {
+            regimenResults.add(muted("Indications: " + product.getIndications()));
         }
     }
 
     private static Span muted(String text) {
         Span span = new Span(text);
         span.getStyle().set("color", "var(--lumo-secondary-text-color)").set("white-space", "normal");
+        return span;
+    }
+
+    /** A bold sub-heading for a block within the regimen output. */
+    private static Span sectionLabel(String text) {
+        Span span = new Span(text);
+        span.getStyle().set("font-weight", "600").set("margin-top", "var(--lumo-space-s)");
         return span;
     }
 

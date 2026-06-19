@@ -5,8 +5,8 @@ import static org.assertj.core.api.Assertions.within;
 
 import org.junit.jupiter.api.Test;
 import t1tanic.nutritionicu.dto.EnergyExpenditureResult;
-import t1tanic.nutritionicu.dto.NutritionProduct;
 import t1tanic.nutritionicu.dto.NutritionRegimen;
+import t1tanic.nutritionicu.model.NutritionProduct;
 import t1tanic.nutritionicu.model.enums.NutritionCategory;
 import t1tanic.nutritionicu.model.enums.StressFactor;
 import t1tanic.nutritionicu.model.enums.WeightClass;

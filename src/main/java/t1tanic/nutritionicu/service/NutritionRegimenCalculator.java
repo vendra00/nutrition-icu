@@ -2,9 +2,9 @@ package t1tanic.nutritionicu.service;
 
 import org.springframework.stereotype.Component;
 import t1tanic.nutritionicu.dto.EnergyExpenditureResult;
-import t1tanic.nutritionicu.dto.NutritionProduct;
 import t1tanic.nutritionicu.dto.NutritionRegimen;
 import t1tanic.nutritionicu.dto.NutritionRegimen.Electrolytes;
+import t1tanic.nutritionicu.model.NutritionProduct;
 
 /**
  * Turns a {@link EnergyExpenditureResult} and a chosen {@link NutritionProduct} into a 24-hour
@@ -35,30 +35,30 @@ public class NutritionRegimenCalculator {
         }
 
         int get = energy.totalKcalPerDay();
-        double density = product.densityKcalPerMl();
+        double density = product.getDensityKcalPerMl();
 
         int mlPerHour = (int) Math.round(get / (density * 24.0));
         int dailyVolume = mlPerHour * 24;
         double per100 = dailyVolume / 100.0; // number of 100 ml units delivered per day
 
-        int proteinG = (int) Math.round(per100 * product.proteinPer100ml());
-        int carbG = (int) Math.round(per100 * product.carbsPer100ml());
-        int fatG = (int) Math.round(per100 * product.fatPer100ml());
-        double nitrogenG = round2(per100 * (product.proteinPer100ml() / 6.25));
-        double fiberG = round2(per100 * product.fiberPer100ml());
+        int proteinG = (int) Math.round(per100 * product.getProteinPer100ml());
+        int carbG = (int) Math.round(per100 * product.getCarbsPer100ml());
+        int fatG = (int) Math.round(per100 * product.getFatPer100ml());
+        double nitrogenG = round2(per100 * (product.getProteinPer100ml() / 6.25));
+        double fiberG = round2(per100 * product.getFiberPer100ml());
         boolean fiberApplicable = fiberG <= 1000; // the source hides the absurd parenteral sentinel
 
-        int proteinPct = (int) Math.round(product.proteinPer100ml() * 4.063 / density);
-        int carbPct = (int) Math.round(product.carbsPer100ml() * 4.063 / density);
-        int fatPct = (int) Math.round(product.fatPer100ml() * 9.082 / density);
+        int proteinPct = (int) Math.round(product.getProteinPer100ml() * 4.063 / density);
+        int carbPct = (int) Math.round(product.getCarbsPer100ml() * 4.063 / density);
+        int fatPct = (int) Math.round(product.getFatPer100ml() * 9.082 / density);
 
         Electrolytes electrolytes = new Electrolytes(
-                gramsPerDay(per100, product.naMgPer100ml()),
-                gramsPerDay(per100, product.kMgPer100ml()),
-                gramsPerDay(per100, product.clMgPer100ml()),
-                gramsPerDay(per100, product.caMgPer100ml()),
-                gramsPerDay(per100, product.mgMgPer100ml()),
-                gramsPerDay(per100, product.pMgPer100ml()));
+                gramsPerDay(per100, product.getSodiumMgPer100ml()),
+                gramsPerDay(per100, product.getPotassiumMgPer100ml()),
+                gramsPerDay(per100, product.getChlorideMgPer100ml()),
+                gramsPerDay(per100, product.getCalciumMgPer100ml()),
+                gramsPerDay(per100, product.getMagnesiumMgPer100ml()),
+                gramsPerDay(per100, product.getPhosphorusMgPer100ml()));
 
         double bmi = energy.bmi();
         double idealKg = energy.idealBodyWeightKg();

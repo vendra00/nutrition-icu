@@ -1,39 +1,31 @@
 package t1tanic.nutritionicu.service;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.Comparator;
 import java.util.List;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
-import t1tanic.nutritionicu.dto.NutritionProduct;
-import tools.jackson.core.type.TypeReference;
-import tools.jackson.databind.ObjectMapper;
+import t1tanic.nutritionicu.model.NutritionProduct;
+import t1tanic.nutritionicu.repo.NutritionProductRepository;
 
 /**
- * In-memory catalog of nutrition formulas, loaded once from {@code nutrition-formulas.json}
- * (transcribed from the rccc.eu formulary). Ordered by category then name for display.
+ * Catalog of nutrition formulas, backed by the database. The built-in rccc.eu products are seeded
+ * on startup (see the formulary initializer); hospital/brand products can be added at runtime.
  */
 @Component
 public class NutritionFormulary {
 
-    private final List<NutritionProduct> products;
+    private final NutritionProductRepository repository;
 
-    public NutritionFormulary(ObjectMapper objectMapper) {
-        try (InputStream in = new ClassPathResource("nutrition-formulas.json").getInputStream()) {
-            this.products = objectMapper
-                    .readValue(in, new TypeReference<List<NutritionProduct>>() {})
-                    .stream()
-                    .sorted(Comparator.comparing(NutritionProduct::category)
-                            .thenComparing(NutritionProduct::name))
-                    .toList();
-        } catch (IOException e) {
-            throw new IllegalStateException("Could not load nutrition-formulas.json", e);
-        }
+    public NutritionFormulary(NutritionProductRepository repository) {
+        this.repository = repository;
     }
 
     /** All formulas, category then name order. */
     public List<NutritionProduct> all() {
-        return products;
+        return repository.findAllByOrderByCategoryAscNameAsc();
+    }
+
+    /** Persists a hospital-added formula. */
+    public NutritionProduct add(NutritionProduct product) {
+        product.setBuiltIn(false);
+        return repository.save(product);
     }
 }
