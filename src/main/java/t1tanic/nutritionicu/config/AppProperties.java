@@ -19,9 +19,9 @@ public record AppProperties(@DefaultValue Ingestion ingestion, @DefaultValue Ocr
 
     /** OCR fallback settings for image-only/scanned PDFs. */
     public record Ocr(
-            /** tessdata directory (folder containing e.g. cat.traineddata); blank to use the default. */
+            //tessdata directory (folder containing e.g. cat.traineddata); blank to use the default.
             @DefaultValue("") String tessdataPath,
-            /** Tesseract language(s); Catalan + Spanish for these reports. */
+            //Tesseract language(s); Catalan + Spanish for these reports.
             @DefaultValue("cat+spa") String language) {
     }
 }
