@@ -2,7 +2,6 @@ package t1tanic.nutritionicu.ui.energy;
 
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.details.Details;
-import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.ColumnTextAlign;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.GridVariant;
@@ -13,7 +12,6 @@ import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.radiobutton.RadioButtonGroup;
-import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.theme.lumo.LumoUtility;
@@ -36,8 +34,8 @@ import t1tanic.nutritionicu.ui.common.BmiBadge;
 import t1tanic.nutritionicu.ui.common.UiFormat;
 
 /**
- * Harris-Benedict energy-expenditure screen: pick a patient to seed sex/age/height/weight from their
- * anthropometry, choose a stress degree, and see basal (GEB) and total (GET) energy expenditure.
+ * Harris-Benedict energy-expenditure screen: pick a patient to read their sex/age/height/weight (edited
+ * in the Patients tab), choose a stress degree, and see basal (GEB) and total (GET) energy expenditure.
  * Once a GET is computed, choosing a nutrition formula shows its 24-hour administration plan
  * (infusion ml/h, macros, electrolytes, protein target). Reproduces the rccc.eu calculator.
  *
@@ -54,17 +52,19 @@ public class EnergyExpenditureView extends VerticalLayout {
     private final transient NutritionFormulary formulary;
 
     private final ComboBox<Patient> patientBox = new ComboBox<>("Patient");
-    private final ComboBox<Sex> sexBox = new ComboBox<>("Sex");
-    private final NumberField ageField = new NumberField("Age (years)");
-    private final NumberField heightField = new NumberField("Height (cm)");
-    private final NumberField weightField = new NumberField("Weight (kg)");
     private final ComboBox<StressFactor> stressBox = new ComboBox<>("Stress degree");
+    private final Span patientPrompt = new Span("Select a patient to see their data.");
+    private final Grid<MetricRow> patientGrid = new Grid<>();
     private final Details nutritionPanel = new Details();
     private final RadioButtonGroup<NutritionCategory> categoryBox = new RadioButtonGroup<>("Type");
     private final ComboBox<NutritionProduct> productBox = new ComboBox<>("Nutrition formula");
 
+    /** The patient whose recorded data feeds the calculation; their data is edited in the Patients tab. */
+    private Patient selectedPatient;
+
     // Energy result (built once)
-    private final Span energyPrompt = new Span("Enter sex, age, height and weight to calculate.");
+    private final Span energyPrompt =
+            new Span("Select a patient with sex, age, height and weight on file to calculate.");
     private final Span totalBadge = new Span();
     private final Grid<MetricRow> energyGrid = new Grid<>();
 
@@ -103,22 +103,26 @@ public class EnergyExpenditureView extends VerticalLayout {
     private Details inputsPanel() {
         patientBox.setItems(patientRepository.findAll());
         patientBox.setItemLabelGenerator(p -> p.getFullName() + " (" + p.getMedicalRecordNumber() + ")");
-        patientBox.addValueChangeListener(e -> prefill(e.getValue()));
+        patientBox.addValueChangeListener(e -> selectPatient(e.getValue()));
 
-        sexBox.setItems(Sex.MALE, Sex.FEMALE);
-        sexBox.setItemLabelGenerator(s -> s == Sex.MALE ? "Male" : "Female");
+        patientGrid.addColumn(MetricRow::metric).setHeader("Patient data").setAutoWidth(true).setFlexGrow(1);
+        patientGrid.addComponentColumn(MetricRow::valueComponent).setHeader("Value").setAutoWidth(true);
+        patientGrid.setAllRowsVisible(true);
+        patientGrid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES, GridVariant.LUMO_COMPACT);
+        patientGrid.setWidth("34em");
+        patientGrid.setVisible(false);
+
+        Span editHint = new Span("Sex, age, height and weight are read from the patient record — "
+                + "edit them in the Patients tab.");
+        editHint.addClassNames(LumoUtility.FontSize.XSMALL, LumoUtility.TextColor.SECONDARY);
+
         stressBox.setItems(StressFactor.values());
         stressBox.setItemLabelGenerator(s -> "%s (×%.2f)".formatted(s.label(), s.factor()));
         stressBox.setValue(StressFactor.NO_STRESS);
-
-        FormLayout inputs = new FormLayout(sexBox, ageField, heightField, weightField, stressBox);
-        sexBox.addValueChangeListener(e -> recompute());
-        ageField.addValueChangeListener(e -> recompute());
-        heightField.addValueChangeListener(e -> recompute());
-        weightField.addValueChangeListener(e -> recompute());
         stressBox.addValueChangeListener(e -> recompute());
 
-        VerticalLayout content = new VerticalLayout(patientBox, inputs);
+        VerticalLayout content = new VerticalLayout(
+                patientBox, patientPrompt, patientGrid, editHint, stressBox);
         content.setPadding(false);
         Details panel = new Details("Patient & inputs", content);
         panel.setOpened(true);
@@ -202,27 +206,53 @@ public class EnergyExpenditureView extends VerticalLayout {
         return note;
     }
 
-    private void prefill(Patient patient) {
-        if (patient == null) {
-            return;
-        }
-        sexBox.setValue(patient.getSex() == Sex.UNKNOWN ? null : patient.getSex());
-        Integer age = patient.ageOn(LocalDate.now());
-        ageField.setValue(age == null ? null : age.doubleValue());
-        heightField.setValue(patient.getHeightCm());
-        weightField.setValue(patient.getCurrentWeightKg());
+    private void selectPatient(Patient patient) {
+        selectedPatient = patient;
         recompute();
     }
 
+    /**
+     * Re-reads the selected patient from the database, so edits made in the Patients tab are reflected
+     * immediately without reselecting. Cheap at this scale (a handful of monitored patients per unit).
+     */
+    private Patient currentPatient() {
+        return selectedPatient == null
+                ? null
+                : patientRepository.findById(selectedPatient.getId()).orElse(null);
+    }
+
+    private static List<MetricRow> patientRows(Patient p) {
+        return List.of(
+                new MetricRow("Sex", sexText(p.getSex()), null),
+                new MetricRow("Age", UiFormat.ageYears(p), null),
+                new MetricRow("Height", UiFormat.number(p.getHeightCm()) + " cm", null),
+                new MetricRow("Weight (current)", UiFormat.number(p.getCurrentWeightKg()) + " kg", null));
+    }
+
+    private static String sexText(Sex sex) {
+        return switch (sex) {
+            case MALE -> "Male";
+            case FEMALE -> "Female";
+            case UNKNOWN -> UiFormat.EMPTY;
+        };
+    }
+
     private void recompute() {
-        Sex sex = sexBox.getValue();
-        Double age = ageField.getValue();
-        Double height = heightField.getValue();
-        Double weight = weightField.getValue();
+        Patient patient = currentPatient();
+        patientPrompt.setVisible(patient == null);
+        patientGrid.setVisible(patient != null);
+        if (patient != null) {
+            patientGrid.setItems(patientRows(patient));
+        }
+
+        Sex sex = patient == null || patient.getSex() == Sex.UNKNOWN ? null : patient.getSex();
+        Integer age = patient == null ? null : patient.ageOn(LocalDate.now());
+        Double height = patient == null ? null : patient.getHeightCm();
+        Double weight = patient == null ? null : patient.getCurrentWeightKg();
         StressFactor stress = stressBox.getValue();
 
         boolean complete = sex != null && stress != null
-                && positive(age) && positive(height) && positive(weight);
+                && age != null && age > 0 && positive(height) && positive(weight);
         energyPrompt.setVisible(!complete);
         totalBadge.setVisible(complete);
         energyGrid.setVisible(complete);
@@ -233,7 +263,7 @@ public class EnergyExpenditureView extends VerticalLayout {
             return;
         }
 
-        EnergyExpenditureResult r = calculator.calculate(sex, weight, height, age.intValue(), stress);
+        EnergyExpenditureResult r = calculator.calculate(sex, weight, height, age, stress);
         lastEnergy = r;
         lastActualWeightKg = weight;
         nutritionPanel.setVisible(true);

@@ -177,7 +177,7 @@ public class NutritionView extends VerticalLayout {
             form.addFormItem(new Span(bandText(a.getComorbidityBand())), "Comorbidities");
             form.addFormItem(new Span(bandText(a.getAdmissionDelayBand())), "Days → ICU");
             form.addFormItem(new Span(bandText(a.getIl6Band())), "IL-6");
-            form.addFormItem(new Span(a.getAssessedOn().toString()), "Assessed");
+            form.addFormItem(new Span(UiFormat.date(a.getAssessedOn())), "Assessed");
             panel.add(form);
         } else {
             panel.add(new Span("No risk assessment yet."));

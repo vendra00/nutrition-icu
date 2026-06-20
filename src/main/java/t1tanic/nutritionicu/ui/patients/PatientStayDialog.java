@@ -7,6 +7,7 @@ import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import t1tanic.nutritionicu.model.Patient;
 import t1tanic.nutritionicu.service.PatientService;
+import t1tanic.nutritionicu.ui.common.UiFormat;
 
 /** Edits a patient's admission and discharge (release) dates. */
 public class PatientStayDialog extends Dialog {
@@ -17,6 +18,8 @@ public class PatientStayDialog extends Dialog {
 
         DatePicker admission = new DatePicker("Admission date");
         DatePicker discharge = new DatePicker("Discharge date");
+        UiFormat.dayMonthYear(admission);
+        UiFormat.dayMonthYear(discharge);
         if (patient.getAdmissionDate() != null) {
             admission.setValue(patient.getAdmissionDate());
         }

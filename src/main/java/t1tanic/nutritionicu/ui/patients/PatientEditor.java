@@ -14,6 +14,7 @@ import t1tanic.nutritionicu.dto.PatientDetails;
 import t1tanic.nutritionicu.model.Patient;
 import t1tanic.nutritionicu.model.enums.Sex;
 import t1tanic.nutritionicu.service.PatientService;
+import t1tanic.nutritionicu.ui.common.UiFormat;
 
 /**
  * Add/edit dialog for a patient's demographic and administrative details. Pass {@code null} as the
@@ -36,6 +37,7 @@ public class PatientEditor extends Dialog {
         setWidth("460px");
 
         nhc.setRequiredIndicatorVisible(true);
+        UiFormat.dayMonthYear(birthDate);
         sex.setItems(Sex.values());
         sex.setItemLabelGenerator(PatientEditor::sexLabel);
         sex.setValue(Sex.UNKNOWN);

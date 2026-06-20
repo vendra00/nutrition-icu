@@ -119,7 +119,7 @@ public class TrendChart extends Composite<Div> {
     }
 
     private static String dateLabel(Instant instant) {
-        return LocalDate.ofInstant(instant, ZoneId.systemDefault()).toString();
+        return UiFormat.date(LocalDate.ofInstant(instant, ZoneId.systemDefault()));
     }
 
     private static String f(double v) {

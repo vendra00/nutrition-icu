@@ -51,7 +51,7 @@ public class PatientsView extends VerticalLayout {
         grid.addColumn(Patient::getMedicalRecordNumber).setHeader("NHC").setAutoWidth(true);
         grid.addColumn(Patient::getFullName).setHeader("Name").setFlexGrow(2);
         grid.addColumn(Patient::getSex).setHeader("Sex").setAutoWidth(true);
-        grid.addColumn(Patient::getBirthDate).setHeader("Born").setAutoWidth(true);
+        grid.addColumn(p -> dateText(p.getBirthDate())).setHeader("Born").setAutoWidth(true);
         grid.addColumn(p -> p.isMonitored() ? "Yes" : "No").setHeader("Monitored").setAutoWidth(true);
         grid.addColumn(p -> dateText(p.getAdmissionDate())).setHeader("Admitted").setAutoWidth(true);
         grid.addColumn(p -> dateText(p.getDischargeDate())).setHeader("Discharged").setAutoWidth(true);
@@ -80,6 +80,6 @@ public class PatientsView extends VerticalLayout {
     }
 
     private static String dateText(LocalDate date) {
-        return date == null ? UiFormat.EMPTY : date.toString();
+        return UiFormat.date(date);
     }
 }

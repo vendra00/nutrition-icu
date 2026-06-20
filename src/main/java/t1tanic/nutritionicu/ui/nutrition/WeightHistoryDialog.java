@@ -1,5 +1,6 @@
 package t1tanic.nutritionicu.ui.nutrition;
 import t1tanic.nutritionicu.ui.common.TrendChart;
+import t1tanic.nutritionicu.ui.common.UiFormat;
 
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
@@ -37,6 +38,7 @@ public class WeightHistoryDialog extends Dialog {
         setHeaderTitle("Weight history · " + patient.getFullName());
         setWidth("680px");
 
+        UiFormat.dayMonthYear(date);
         date.setValue(LocalDate.now());
         date.setMax(LocalDate.now());
         Button addOrUpdate = new Button("Add / update", e -> save());
@@ -46,7 +48,7 @@ public class WeightHistoryDialog extends Dialog {
 
         chartHolder.setWidthFull();
 
-        grid.addColumn(WeightMeasurement::getMeasuredOn).setHeader("Date").setAutoWidth(true);
+        grid.addColumn(m -> UiFormat.date(m.getMeasuredOn())).setHeader("Date").setAutoWidth(true);
         grid.addColumn(WeightMeasurement::getWeightKg).setHeader("Weight (kg)").setAutoWidth(true);
         grid.addComponentColumn(m -> new Button("Delete", e -> {
             nutritionService.deleteWeight(m.getId());
