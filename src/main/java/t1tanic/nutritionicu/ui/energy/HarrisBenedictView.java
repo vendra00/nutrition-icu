@@ -1,10 +1,13 @@
 package t1tanic.nutritionicu.ui.energy;
 
+import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.details.Details;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.theme.lumo.LumoUtility;
 import java.time.LocalDate;
@@ -13,6 +16,7 @@ import t1tanic.nutritionicu.dto.EnergyExpenditureResult;
 import t1tanic.nutritionicu.model.Patient;
 import t1tanic.nutritionicu.model.enums.Sex;
 import t1tanic.nutritionicu.model.enums.StressFactor;
+import t1tanic.nutritionicu.service.nutrition.EnergyAssessmentService;
 import t1tanic.nutritionicu.service.nutrition.HarrisBenedictCalculator;
 import t1tanic.nutritionicu.service.nutrition.NutritionFormulary;
 import t1tanic.nutritionicu.service.nutrition.NutritionRegimenCalculator;
@@ -32,6 +36,7 @@ public class HarrisBenedictView extends VerticalLayout {
     private final transient PatientService patientService;
     private final transient NutritionService nutritionService;
     private final transient HarrisBenedictCalculator calculator;
+    private final transient EnergyAssessmentService energyService;
 
     private final ComboBox<Patient> patientBox = new ComboBox<>("Patient");
     private final ComboBox<StressFactor> stressBox = new ComboBox<>("Stress degree");
@@ -43,17 +48,22 @@ public class HarrisBenedictView extends VerticalLayout {
             new Span("Select a patient with sex, age, height and weight on file to calculate.");
     private final Span totalBadge = new Span();
     private final Grid<MetricsTable.Row> energyGrid = MetricsTable.create("Metric");
+    private final Button saveButton = new Button("Save assessment");
 
     private Patient selectedPatient;
+    private EnergyExpenditureResult lastEnergy;
+    private double lastActualWeightKg;
 
     public HarrisBenedictView(PatientService patientService,
                               NutritionService nutritionService,
                               HarrisBenedictCalculator calculator,
+                              EnergyAssessmentService energyService,
                               NutritionRegimenCalculator regimenCalculator,
                               NutritionFormulary formulary) {
         this.patientService = patientService;
         this.nutritionService = nutritionService;
         this.calculator = calculator;
+        this.energyService = energyService;
         this.regimenPanel = new NutritionRegimenPanel(regimenCalculator, formulary);
         this.regimenPanel.setNoEnergyPrompt("Calculate energy expenditure first.");
         setWidthFull();
@@ -95,9 +105,24 @@ public class HarrisBenedictView extends VerticalLayout {
 
         energyGrid.setWidth("34em");
 
-        Details panel = new Details("Energy expenditure (GET)", new Div(energyPrompt, totalBadge, energyGrid));
+        saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        saveButton.setEnabled(false);
+        saveButton.addClickListener(e -> saveAssessment());
+
+        Details panel = new Details("Energy expenditure (GET)",
+                new Div(energyPrompt, totalBadge, energyGrid, saveButton));
         panel.setOpened(true);
         return panel;
+    }
+
+    private void saveAssessment() {
+        Patient patient = currentPatient();
+        if (patient == null || lastEnergy == null) {
+            return;
+        }
+        energyService.recordHarrisBenedict(patient.getId(), LocalDate.now(), lastEnergy, lastActualWeightKg);
+        Notification.show("Saved Harris-Benedict assessment for " + patient.getFullName(),
+                3000, Notification.Position.BOTTOM_START);
     }
 
     private Span note() {
@@ -166,12 +191,18 @@ public class HarrisBenedictView extends VerticalLayout {
         energyPrompt.setVisible(!complete);
         totalBadge.setVisible(complete);
         energyGrid.setVisible(complete);
+        saveButton.setVisible(complete);
         if (!complete) {
+            lastEnergy = null;
+            saveButton.setEnabled(false);
             regimenPanel.clear();
             return;
         }
 
         EnergyExpenditureResult r = calculator.calculate(sex, weight, height, age, stress);
+        lastEnergy = r;
+        lastActualWeightKg = weight;
+        saveButton.setEnabled(true);
         totalBadge.setText("GET (total): %d kcal/day".formatted(r.totalKcalPerDay()));
         energyGrid.setItems(metricRows(r));
         regimenPanel.update(r, weight);

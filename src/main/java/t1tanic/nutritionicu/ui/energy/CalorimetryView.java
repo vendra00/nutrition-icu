@@ -22,10 +22,11 @@ import java.util.List;
 import java.util.Locale;
 import t1tanic.nutritionicu.dto.EnergyExpenditureResult;
 import t1tanic.nutritionicu.dto.NutritionMetrics;
-import t1tanic.nutritionicu.model.CalorimetryMeasurement;
+import t1tanic.nutritionicu.model.EnergyAssessment;
 import t1tanic.nutritionicu.model.Patient;
+import t1tanic.nutritionicu.model.enums.EnergyMethod;
 import t1tanic.nutritionicu.model.enums.Sex;
-import t1tanic.nutritionicu.service.nutrition.CalorimetryService;
+import t1tanic.nutritionicu.service.nutrition.EnergyAssessmentService;
 import t1tanic.nutritionicu.service.nutrition.NutritionFormulary;
 import t1tanic.nutritionicu.service.nutrition.NutritionRegimenCalculator;
 import t1tanic.nutritionicu.service.nutrition.NutritionService;
@@ -33,15 +34,17 @@ import t1tanic.nutritionicu.service.patient.PatientService;
 
 /**
  * Indirect-calorimetry panel: the doctor records the measured energy expenditure (mEE/REE, kcal/day)
- * and respiratory quotient (RQ) read off the calorimeter, sees the history/trend and an RQ
- * over/under-feeding reading, and the latest measured value drives the shared {@link NutritionRegimenPanel}.
- * Hosted as a tab inside {@link EnergyView}.
+ * and respiratory quotient (RQ) read off the calorimeter. Studies are saved as {@link EnergyAssessment}s
+ * (method = indirect calorimetry) so they trend over time and compare against Harris-Benedict; the latest
+ * measured value drives the shared {@link NutritionRegimenPanel}. Hosted as a tab inside {@link EnergyView}.
  */
 public class CalorimetryView extends VerticalLayout {
 
+    private static final EnergyMethod METHOD = EnergyMethod.INDIRECT_CALORIMETRY;
+
     private final transient PatientService patientService;
     private final transient NutritionService nutritionService;
-    private final transient CalorimetryService calorimetryService;
+    private final transient EnergyAssessmentService energyService;
 
     private final ComboBox<Patient> patientBox = new ComboBox<>("Patient");
     private final Span patientPrompt = new Span("Select a patient to record and see their studies.");
@@ -53,7 +56,7 @@ public class CalorimetryView extends VerticalLayout {
     private final Button addOrUpdate = new Button("Add / update");
 
     private final Div latestHolder = new Div();
-    private final Grid<CalorimetryMeasurement> historyGrid = new Grid<>(CalorimetryMeasurement.class, false);
+    private final Grid<EnergyAssessment> historyGrid = new Grid<>(EnergyAssessment.class, false);
     private final Div chartHolder = new Div();
     private final NutritionRegimenPanel regimenPanel;
 
@@ -61,12 +64,12 @@ public class CalorimetryView extends VerticalLayout {
 
     public CalorimetryView(PatientService patientService,
                            NutritionService nutritionService,
-                           CalorimetryService calorimetryService,
+                           EnergyAssessmentService energyService,
                            NutritionRegimenCalculator regimenCalculator,
                            NutritionFormulary formulary) {
         this.patientService = patientService;
         this.nutritionService = nutritionService;
-        this.calorimetryService = calorimetryService;
+        this.energyService = energyService;
         this.regimenPanel = new NutritionRegimenPanel(regimenCalculator, formulary);
         this.regimenPanel.setNoEnergyPrompt("Record a calorimetry study (the patient also needs "
                 + "height and weight on file) to see the administration plan.");
@@ -107,12 +110,12 @@ public class CalorimetryView extends VerticalLayout {
         HorizontalLayout form = new HorizontalLayout(date, measuredKcal, rq, addOrUpdate);
         form.setAlignItems(FlexComponent.Alignment.BASELINE);
 
-        historyGrid.addColumn(m -> UiFormat.date(m.getMeasuredOn())).setHeader("Date").setAutoWidth(true);
-        historyGrid.addColumn(m -> m.getMeasuredKcalPerDay() + " kcal/day")
+        historyGrid.addColumn(m -> UiFormat.date(m.getAssessedOn())).setHeader("Date").setAutoWidth(true);
+        historyGrid.addColumn(m -> m.getTotalKcalPerDay() + " kcal/day")
                 .setHeader("Measured EE").setAutoWidth(true);
         historyGrid.addComponentColumn(m -> rqBadge(m.getRq())).setHeader("RQ").setAutoWidth(true);
         historyGrid.addComponentColumn(m -> new Button("Delete", e -> {
-            calorimetryService.delete(m.getId());
+            energyService.delete(m.getId());
             refresh();
         })).setHeader("").setAutoWidth(true);
         historyGrid.setAllRowsVisible(true);
@@ -143,7 +146,7 @@ public class CalorimetryView extends VerticalLayout {
             return;
         }
         int kcal = (int) Math.round(measuredKcal.getValue());
-        calorimetryService.record(patient.getId(), date.getValue(), kcal, rq.getValue());
+        energyService.recordCalorimetry(patient.getId(), date.getValue(), kcal, rq.getValue());
         measuredKcal.clear();
         rq.clear();
         refresh();
@@ -169,13 +172,13 @@ public class CalorimetryView extends VerticalLayout {
         }
 
         patientGrid.setItems(patientRows(patient));
-        List<CalorimetryMeasurement> history = calorimetryService.history(patient.getId());
+        List<EnergyAssessment> history = energyService.history(patient.getId(), METHOD);
         historyGrid.setItems(history);
 
         List<TrendChart.Point> points = history.stream()
                 .map(m -> new TrendChart.Point(
-                        m.getMeasuredOn().atStartOfDay(ZoneId.systemDefault()).toInstant(),
-                        (double) m.getMeasuredKcalPerDay()))
+                        m.getAssessedOn().atStartOfDay(ZoneId.systemDefault()).toInstant(),
+                        (double) m.getTotalKcalPerDay()))
                 .toList();
         chartHolder.add(new TrendChart(points, null, null, "kcal/day"));
 
@@ -183,20 +186,20 @@ public class CalorimetryView extends VerticalLayout {
         updateRegimen(patient);
     }
 
-    private void renderLatest(Patient patient, List<CalorimetryMeasurement> history) {
+    private void renderLatest(Patient patient, List<EnergyAssessment> history) {
         if (history.isEmpty()) {
             Span none = new Span("No calorimetry studies recorded yet.");
             none.addClassNames(LumoUtility.TextColor.SECONDARY);
             latestHolder.add(none);
             return;
         }
-        CalorimetryMeasurement latest = history.get(history.size() - 1);
+        EnergyAssessment latest = history.get(history.size() - 1);
         Double weight = patient.getCurrentWeightKg();
         String perKg = weight != null && weight > 0
-                ? " · " + UiFormat.number(latest.getMeasuredKcalPerDay() / weight) + " kcal/kg/day"
+                ? " · " + UiFormat.number(latest.getTotalKcalPerDay() / weight) + " kcal/kg/day"
                 : "";
         Span badge = new Span("Latest: %d kcal/day%s  (%s)".formatted(
-                latest.getMeasuredKcalPerDay(), perKg, UiFormat.date(latest.getMeasuredOn())));
+                latest.getTotalKcalPerDay(), perKg, UiFormat.date(latest.getAssessedOn())));
         badge.getElement().getThemeList().add("badge primary");
         badge.addClassName(LumoUtility.FontSize.LARGE);
         badge.getStyle().set("white-space", "normal").set("margin-right", "var(--lumo-space-s)");
@@ -209,14 +212,14 @@ public class CalorimetryView extends VerticalLayout {
         Double bmi = m.bmi();
         Double idealKg = m.idealBodyWeightKg();
         Double weight = patient.getCurrentWeightKg();
-        var latest = calorimetryService.latest(patient.getId());
+        var latest = energyService.latest(patient.getId(), METHOD);
         boolean ready = latest.isPresent() && bmi != null && weight != null && weight > 0
                 && (bmi < 30 || idealKg != null);
         if (!ready) {
             regimenPanel.clear();
             return;
         }
-        int kcal = latest.get().getMeasuredKcalPerDay();
+        int kcal = latest.get().getTotalKcalPerDay();
         EnergyExpenditureResult energy = new EnergyExpenditureResult(
                 bmi, null, idealKg != null ? idealKg : 0.0, weight, 0, kcal, kcal / weight, null);
         regimenPanel.update(energy, weight);

@@ -7,7 +7,7 @@ import com.vaadin.flow.component.tabs.Tab;
 import com.vaadin.flow.component.tabs.Tabs;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
-import t1tanic.nutritionicu.service.nutrition.CalorimetryService;
+import t1tanic.nutritionicu.service.nutrition.EnergyAssessmentService;
 import t1tanic.nutritionicu.service.nutrition.HarrisBenedictCalculator;
 import t1tanic.nutritionicu.service.nutrition.NutritionFormulary;
 import t1tanic.nutritionicu.service.nutrition.NutritionRegimenCalculator;
@@ -26,7 +26,7 @@ public class EnergyView extends VerticalLayout {
     public EnergyView(PatientService patientService,
                       NutritionService nutritionService,
                       HarrisBenedictCalculator calculator,
-                      CalorimetryService calorimetryService,
+                      EnergyAssessmentService energyService,
                       NutritionRegimenCalculator regimenCalculator,
                       NutritionFormulary formulary) {
         setWidthFull();
@@ -34,9 +34,9 @@ public class EnergyView extends VerticalLayout {
         add(new H2("Energy expenditure"));
 
         HarrisBenedictView harrisBenedict = new HarrisBenedictView(
-                patientService, nutritionService, calculator, regimenCalculator, formulary);
+                patientService, nutritionService, calculator, energyService, regimenCalculator, formulary);
         CalorimetryView calorimetry = new CalorimetryView(
-                patientService, nutritionService, calorimetryService, regimenCalculator, formulary);
+                patientService, nutritionService, energyService, regimenCalculator, formulary);
 
         Tab hbTab = new Tab("Harris-Benedict");
         Tab calorimetryTab = new Tab("Calorimetry");

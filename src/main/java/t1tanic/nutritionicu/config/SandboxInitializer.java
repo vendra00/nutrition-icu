@@ -8,6 +8,7 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
+import t1tanic.nutritionicu.dto.EnergyExpenditureResult;
 import t1tanic.nutritionicu.model.Doctor;
 import t1tanic.nutritionicu.model.Patient;
 import t1tanic.nutritionicu.model.enums.AdmissionDelayBand;
@@ -17,9 +18,12 @@ import t1tanic.nutritionicu.model.enums.Il6Band;
 import t1tanic.nutritionicu.model.enums.Sector;
 import t1tanic.nutritionicu.model.enums.Sex;
 import t1tanic.nutritionicu.model.enums.SofaBand;
+import t1tanic.nutritionicu.model.enums.StressFactor;
 import t1tanic.nutritionicu.repo.DoctorRepository;
 import t1tanic.nutritionicu.repo.PatientRepository;
 import t1tanic.nutritionicu.service.alert.AlertService;
+import t1tanic.nutritionicu.service.nutrition.EnergyAssessmentService;
+import t1tanic.nutritionicu.service.nutrition.HarrisBenedictCalculator;
 import t1tanic.nutritionicu.service.nutrition.NutritionService;
 
 /**
@@ -37,15 +41,21 @@ public class SandboxInitializer implements ApplicationRunner {
     private final DoctorRepository doctorRepository;
     private final AlertService alertService;
     private final NutritionService nutritionService;
+    private final EnergyAssessmentService energyService;
+    private final HarrisBenedictCalculator calculator;
 
     public SandboxInitializer(PatientRepository patientRepository,
                               DoctorRepository doctorRepository,
                               AlertService alertService,
-                              NutritionService nutritionService) {
+                              NutritionService nutritionService,
+                              EnergyAssessmentService energyService,
+                              HarrisBenedictCalculator calculator) {
         this.patientRepository = patientRepository;
         this.doctorRepository = doctorRepository;
         this.alertService = alertService;
         this.nutritionService = nutritionService;
+        this.energyService = energyService;
+        this.calculator = calculator;
     }
 
     @Override
@@ -55,6 +65,7 @@ public class SandboxInitializer implements ApplicationRunner {
         seedAnthropometryAndWeights();
         seedTemperatures();
         seedRiskAssessments();
+        seedEnergyAssessments();
         int alerts = alertService.evaluateForMonitoredPatients();
         log.info("Sandbox: raised {} alert(s) from monitored patients' reports", alerts);
     }
@@ -162,5 +173,59 @@ public class SandboxInitializer implements ApplicationRunner {
             seeded++;
         }
         log.info("Sandbox: seeded NUTRIC risk assessments for {} patient(s)", seeded);
+    }
+
+    /**
+     * Seeds both energy methods on the same dates (every ~4 days) so the store has comparable data:
+     * a series of indirect-calorimetry studies (measured EE rising into hypermetabolism then settling,
+     * RQ moving across its bands) and the static Harris-Benedict prediction recorded alongside. The flat
+     * HB line vs the fluctuating measured line is exactly the measured-vs-predicted picture. Idempotent:
+     * skips patients that already have any energy assessment.
+     */
+    private void seedEnergyAssessments() {
+        double[] factors = {0.95, 1.08, 1.12, 1.0};            // mEE as a multiple of resting need
+        double[] rqs = {0.78, 0.84, 0.92, 0.86};               // RQ low → high → balanced
+        StressFactor[] stresses = {StressFactor.NO_STRESS, StressFactor.CONTROLLED_INFECTION};
+        List<Patient> patients = patientRepository.findByMonitoredTrue();
+        int seeded = 0;
+        for (Patient patient : patients) {
+            if (patient.getId() == null || !energyService.history(patient.getId()).isEmpty()) {
+                continue;
+            }
+            long n = patient.getId();
+            Double weight = patient.getCurrentWeightKg();
+            double kg = weight != null && weight > 0 ? weight : 75.0;
+            double kcalPerKg = 22.0 + (n % 5);                 // 22–26 kcal/kg resting baseline
+            LocalDate start = LocalDate.now().minusDays(12 + (int) (n % 3));
+
+            // Harris-Benedict prediction (static — same inputs each day), if the patient has complete data.
+            EnergyExpenditureResult hb = harrisBenedict(patient, weight, stresses[(int) (n % stresses.length)]);
+
+            for (int i = 0; i < factors.length; i++) {
+                LocalDate d = start.plusDays(i * 4L);
+                int kcal = (int) Math.round(kg * kcalPerKg * factors[i]);
+                energyService.recordCalorimetry(patient.getId(), d, kcal, rqs[i]);
+                if (hb != null) {
+                    energyService.recordHarrisBenedict(patient.getId(), d, hb, weight);
+                }
+            }
+            seeded++;
+        }
+        log.info("Sandbox: seeded energy assessments (HB + calorimetry) for {} patient(s)", seeded);
+    }
+
+    /** The HB result for a patient, or null when sex/age/height/weight are incomplete. */
+    private EnergyExpenditureResult harrisBenedict(Patient patient, Double weight, StressFactor stress) {
+        boolean complete = (patient.getSex() == Sex.MALE || patient.getSex() == Sex.FEMALE)
+                && patient.getHeightCm() != null && patient.getHeightCm() > 0
+                && weight != null && weight > 0;
+        if (!complete) {
+            return null;
+        }
+        Integer age = patient.ageOn(LocalDate.now());
+        if (age == null || age <= 0) {
+            return null;
+        }
+        return calculator.calculate(patient.getSex(), weight, patient.getHeightCm(), age, stress);
     }
 }
