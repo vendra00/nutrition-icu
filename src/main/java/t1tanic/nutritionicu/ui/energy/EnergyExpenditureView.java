@@ -32,6 +32,7 @@ import t1tanic.nutritionicu.service.HarrisBenedictCalculator;
 import t1tanic.nutritionicu.service.NutritionFormulary;
 import t1tanic.nutritionicu.service.NutritionRegimenCalculator;
 import t1tanic.nutritionicu.ui.MainLayout;
+import t1tanic.nutritionicu.ui.common.BmiBadge;
 import t1tanic.nutritionicu.ui.common.UiFormat;
 
 /**
@@ -131,7 +132,7 @@ public class EnergyExpenditureView extends VerticalLayout {
         totalBadge.getStyle().set("white-space", "normal").set("margin-bottom", "var(--lumo-space-s)");
 
         energyGrid.addColumn(MetricRow::metric).setHeader("Metric").setAutoWidth(true).setFlexGrow(1);
-        energyGrid.addColumn(MetricRow::value).setHeader("Value").setAutoWidth(true);
+        energyGrid.addComponentColumn(MetricRow::valueComponent).setHeader("Value").setAutoWidth(true);
         energyGrid.setAllRowsVisible(true);
         energyGrid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES, GridVariant.LUMO_COMPACT);
         energyGrid.setWidth("34em");
@@ -300,13 +301,13 @@ public class EnergyExpenditureView extends VerticalLayout {
 
     private static List<MetricRow> metricRows(EnergyExpenditureResult r) {
         return List.of(
-                new MetricRow("GEB (basal)", r.basalKcalPerDay() + " kcal/day"),
+                new MetricRow("GEB (basal)", r.basalKcalPerDay() + " kcal/day", null),
                 new MetricRow("Per kg (actual weight)",
-                        UiFormat.number(r.kcalPerKgPerDay()) + " kcal/kg/day"),
-                new MetricRow("BMI", UiFormat.number(r.bmi())),
-                new MetricRow("Weight class", weightBasis(r)),
-                new MetricRow("Ideal body weight", UiFormat.number(r.idealBodyWeightKg()) + " kg"),
-                new MetricRow("Weight used in equation", UiFormat.number(r.weightUsedKg()) + " kg"));
+                        UiFormat.number(r.kcalPerKgPerDay()) + " kcal/kg/day", null),
+                new MetricRow("BMI", UiFormat.number(r.bmi()), r.bmi()),
+                new MetricRow("Weight class", weightBasis(r), null),
+                new MetricRow("Ideal body weight", UiFormat.number(r.idealBodyWeightKg()) + " kg", null),
+                new MetricRow("Weight used in equation", UiFormat.number(r.weightUsedKg()) + " kg", null));
     }
 
     private static List<MacroRow> macroRows(NutritionRegimen plan) {
@@ -371,7 +372,12 @@ public class EnergyExpenditureView extends VerticalLayout {
         return value != null && value > 0;
     }
 
-    private record MetricRow(String metric, String value) {
+    /** A metric row; {@code bmi} is non-null only for the BMI row, which renders a coloured pill. */
+    private record MetricRow(String metric, String value, Double bmi) {
+
+        Span valueComponent() {
+            return bmi == null ? new Span(value) : BmiBadge.of(bmi, value);
+        }
     }
 
     private record MacroRow(String nutrient, String amount, String share) {

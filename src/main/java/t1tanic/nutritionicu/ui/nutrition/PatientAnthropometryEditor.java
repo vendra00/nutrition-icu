@@ -5,12 +5,15 @@ import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.formlayout.FormLayout;
+import com.vaadin.flow.component.grid.Grid;
+import com.vaadin.flow.component.grid.GridVariant;
 import com.vaadin.flow.component.html.Span;
-import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.NumberField;
+import java.util.List;
 import t1tanic.nutritionicu.dto.NutritionMetrics;
 import t1tanic.nutritionicu.model.Patient;
 import t1tanic.nutritionicu.service.NutritionService;
+import t1tanic.nutritionicu.ui.common.BmiBadge;
 
 /**
  * Dialog for the doctor to record a patient's screening anthropometry: height and
@@ -22,11 +25,7 @@ public class PatientAnthropometryEditor extends Dialog {
 
     private final NumberField height = new NumberField("Height (cm)");
     private final NumberField usualWeight = new NumberField("Usual weight (kg)");
-
-    private final Span bmi = new Span();
-    private final Span ibw = new Span();
-    private final Span abw = new Span();
-    private final Span loss = new Span();
+    private final Grid<MetricRow> metricsGrid = new Grid<>();
 
     public PatientAnthropometryEditor(Patient patient,
                                       NutritionService nutritionService,
@@ -45,11 +44,13 @@ public class PatientAnthropometryEditor extends Dialog {
         FormLayout form = new FormLayout(height, usualWeight);
         form.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1));
 
-        VerticalLayout metrics = new VerticalLayout(bmi, ibw, abw, loss);
-        metrics.setSpacing(false);
-        metrics.setPadding(false);
+        metricsGrid.addColumn(MetricRow::metric).setHeader("Derived metric").setAutoWidth(true).setFlexGrow(1);
+        metricsGrid.addComponentColumn(MetricRow::valueComponent).setHeader("Value").setAutoWidth(true);
+        metricsGrid.setAllRowsVisible(true);
+        metricsGrid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES, GridVariant.LUMO_COMPACT);
+        metricsGrid.setWidthFull();
 
-        add(form, new Span("Derived metrics"), metrics);
+        add(form, metricsGrid);
         recompute(patient, nutritionService);
 
         Button cancel = new Button("Cancel", e -> close());
@@ -71,15 +72,24 @@ public class PatientAnthropometryEditor extends Dialog {
         draft.setCurrentWeightKg(patient.getCurrentWeightKg());
 
         NutritionMetrics m = nutritionService.metricsFor(draft);
-        bmi.setText("BMI: " + UiFormat.number(m.bmi()));
-        ibw.setText("Ideal body weight: " + UiFormat.number(m.idealBodyWeightKg()) + " kg");
-        abw.setText("Adjusted body weight: " + UiFormat.number(m.adjustedBodyWeightKg()) + " kg");
-        loss.setText("Recent weight loss: " + UiFormat.number(m.weightLossPercent()) + " %");
+        metricsGrid.setItems(List.of(
+                new MetricRow("BMI", UiFormat.number(m.bmi()), m.bmi()),
+                new MetricRow("Ideal body weight", UiFormat.number(m.idealBodyWeightKg()) + " kg", null),
+                new MetricRow("Adjusted body weight", UiFormat.number(m.adjustedBodyWeightKg()) + " kg", null),
+                new MetricRow("Recent weight loss", UiFormat.number(m.weightLossPercent()) + " %", null)));
     }
 
     private static void setValueIfPresent(NumberField field, Double value) {
         if (value != null) {
             field.setValue(value);
+        }
+    }
+
+    /** A derived-metric row; {@code bmi} is non-null only for the BMI row, which renders a coloured pill. */
+    private record MetricRow(String metric, String value, Double bmi) {
+
+        Span valueComponent() {
+            return bmi == null ? new Span(value) : BmiBadge.of(bmi, value);
         }
     }
 }

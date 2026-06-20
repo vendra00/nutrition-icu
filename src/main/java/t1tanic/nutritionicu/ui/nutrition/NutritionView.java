@@ -1,13 +1,18 @@
 package t1tanic.nutritionicu.ui.nutrition;
+import t1tanic.nutritionicu.ui.common.BmiBadge;
 import t1tanic.nutritionicu.ui.common.UiFormat;
 import t1tanic.nutritionicu.ui.common.TrendChart;
 import t1tanic.nutritionicu.ui.MainLayout;
 
+import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.combobox.ComboBox;
+import com.vaadin.flow.component.details.Details;
 import com.vaadin.flow.component.formlayout.FormLayout;
+import com.vaadin.flow.component.grid.Grid;
+import com.vaadin.flow.component.grid.GridVariant;
+import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H2;
-import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -45,17 +50,30 @@ public class NutritionView extends VerticalLayout {
         this.patientRepository = patientRepository;
         this.nutritionService = nutritionService;
         this.labResultRepository = labResultRepository;
-        setSizeFull();
+        setWidthFull();
         setPadding(true);
-        add(new H2("Nutrition protocol"));
 
         patientBox.setItems(patientRepository.findAll());
         patientBox.setItemLabelGenerator(p -> p.getFullName() + " (" + p.getMedicalRecordNumber() + ")");
         patientBox.addValueChangeListener(e -> render(e.getValue()));
-        add(patientBox);
 
         details.setPadding(false);
-        add(details);
+        details.setSpacing(false);
+        details.getStyle().set("gap", "var(--lumo-space-s)");
+
+        // One outer card enveloping the whole protocol; the per-section accordions inside are flattened.
+        Div card = new Div(new H2("Nutrition protocol"), patientBox, details);
+        card.setWidthFull();
+        card.getStyle()
+                .set("display", "flex")
+                .set("flex-direction", "column")
+                .set("gap", "var(--lumo-space-m)")
+                .set("padding", "var(--lumo-space-l)")
+                .set("border", "1px solid var(--lumo-contrast-10pct)")
+                .set("border-radius", "var(--lumo-border-radius-l)")
+                .set("background-color", "var(--lumo-base-color)")
+                .set("box-shadow", "var(--lumo-box-shadow-xs)");
+        add(card);
     }
 
     private void render(Patient patient) {
@@ -64,18 +82,6 @@ public class NutritionView extends VerticalLayout {
             return;
         }
         NutritionMetrics m = nutritionService.metricsFor(patient);
-
-        FormLayout info = new FormLayout();
-        info.addFormItem(new Span(String.valueOf(patient.getSex())), "Sex");
-        info.addFormItem(new Span(UiFormat.ageYears(patient)), "Age");
-        info.addFormItem(new Span(UiFormat.number(patient.getHeightCm()) + " cm"), "Height");
-        info.addFormItem(new Span(UiFormat.number(patient.getCurrentWeightKg()) + " kg"), "Current weight");
-        info.addFormItem(new Span(UiFormat.number(patient.getUsualWeightKg()) + " kg"), "Usual weight");
-        info.addFormItem(new Span(UiFormat.number(m.bmi())), "BMI");
-        info.addFormItem(new Span(UiFormat.number(m.idealBodyWeightKg()) + " kg"), "Ideal body weight");
-        info.addFormItem(new Span(UiFormat.number(m.adjustedBodyWeightKg()) + " kg"), "Adjusted body weight");
-        info.addFormItem(new Span(UiFormat.number(m.weightLossPercent()) + " %"), "Recent weight loss");
-        details.add(info);
 
         Button bodyData = new Button("Edit body data", e ->
                 new PatientAnthropometryEditor(patient, nutritionService, () -> reload(patient.getId())).open());
@@ -88,15 +94,30 @@ public class NutritionView extends VerticalLayout {
             });
             dialog.open();
         });
-        details.add(new HorizontalLayout(bodyData, weights));
 
-        details.add(new H3("Nutritional risk (NUTRIC)"));
-        details.add(riskPanel(patient));
+        details.add(panel("Anthropometry & metrics",
+                metricsTable(patient, m), new HorizontalLayout(bodyData, weights)));
+        details.add(panel("Nutritional risk (NUTRIC)", riskPanel(patient)));
+        details.add(panel("Metabolic monitoring (lab)",
+                new MetabolicMonitorPanel(patient, labResultRepository)));
+        details.add(panel("Weight trend", weightTrend(patient)));
+    }
 
-        details.add(new H3("Metabolic monitoring (lab)"));
-        details.add(new MetabolicMonitorPanel(patient, labResultRepository));
+    /** Wraps a section's content in an open collapsible panel, matching the Energy tab's accordions. */
+    private static Details panel(String title, Component... content) {
+        // A block-level Div (not a flex VerticalLayout) keeps a contained Grid inside the card's
+        // border; a flex parent lets the Grid overflow the Lumo Details card in Vaadin 25.
+        Div body = new Div(content);
+        body.getStyle().set("display", "flex").set("flex-direction", "column")
+                .set("gap", "var(--lumo-space-m)").set("padding-top", "var(--lumo-space-s)");
+        Details panel = new Details(title, body);
+        panel.setOpened(true);
+        // Flat inside the outer card: drop the Details' own card chrome so only the outer box shows.
+        panel.getStyle().set("border", "none").set("box-shadow", "none").set("background", "transparent");
+        return panel;
+    }
 
-        details.add(new H3("Weight trend"));
+    private TrendChart weightTrend(Patient patient) {
         List<WeightMeasurement> history = nutritionService.weightHistory(patient.getId());
         List<TrendChart.Point> points = history.stream()
                 .filter(w -> w.getWeightKg() != null)
@@ -104,7 +125,38 @@ public class NutritionView extends VerticalLayout {
                         w.getMeasuredOn().atStartOfDay(ZoneId.systemDefault()).toInstant(),
                         w.getWeightKg()))
                 .toList();
-        details.add(new TrendChart(points, null, null, "kg"));
+        return new TrendChart(points, null, null, "kg");
+    }
+
+    /** Patient anthropometry and derived metrics, as a compact Metric/Value table. */
+    private Grid<MetricRow> metricsTable(Patient patient, NutritionMetrics m) {
+        List<MetricRow> rows = List.of(
+                new MetricRow("Sex", String.valueOf(patient.getSex()), null),
+                new MetricRow("Age", UiFormat.ageYears(patient), null),
+                new MetricRow("Height", UiFormat.number(patient.getHeightCm()) + " cm", null),
+                new MetricRow("Current weight", UiFormat.number(patient.getCurrentWeightKg()) + " kg", null),
+                new MetricRow("Usual weight", UiFormat.number(patient.getUsualWeightKg()) + " kg", null),
+                new MetricRow("BMI", UiFormat.number(m.bmi()), m.bmi()),
+                new MetricRow("Ideal body weight", UiFormat.number(m.idealBodyWeightKg()) + " kg", null),
+                new MetricRow("Adjusted body weight", UiFormat.number(m.adjustedBodyWeightKg()) + " kg", null),
+                new MetricRow("Recent weight loss", UiFormat.number(m.weightLossPercent()) + " %", null));
+
+        Grid<MetricRow> grid = new Grid<>();
+        grid.addColumn(MetricRow::metric).setHeader("Metric").setAutoWidth(true).setFlexGrow(0);
+        grid.addComponentColumn(MetricRow::valueComponent).setHeader("Value").setAutoWidth(true).setFlexGrow(1);
+        grid.setItems(rows);
+        grid.setAllRowsVisible(true);
+        grid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES, GridVariant.LUMO_COMPACT);
+        grid.setWidth("32em");
+        return grid;
+    }
+
+    /** A metric row; {@code bmi} is non-null only for the BMI row, which renders a coloured pill. */
+    private record MetricRow(String metric, String value, Double bmi) {
+
+        Span valueComponent() {
+            return bmi == null ? new Span(value) : BmiBadge.of(bmi, value);
+        }
     }
 
     private VerticalLayout riskPanel(Patient patient) {
