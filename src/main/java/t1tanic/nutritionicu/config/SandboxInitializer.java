@@ -10,8 +10,13 @@ import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import t1tanic.nutritionicu.model.Doctor;
 import t1tanic.nutritionicu.model.Patient;
+import t1tanic.nutritionicu.model.enums.AdmissionDelayBand;
+import t1tanic.nutritionicu.model.enums.ApacheBand;
+import t1tanic.nutritionicu.model.enums.ComorbidityBand;
+import t1tanic.nutritionicu.model.enums.Il6Band;
 import t1tanic.nutritionicu.model.enums.Sector;
 import t1tanic.nutritionicu.model.enums.Sex;
+import t1tanic.nutritionicu.model.enums.SofaBand;
 import t1tanic.nutritionicu.repo.DoctorRepository;
 import t1tanic.nutritionicu.repo.PatientRepository;
 import t1tanic.nutritionicu.service.AlertService;
@@ -49,6 +54,7 @@ public class SandboxInitializer implements ApplicationRunner {
         markAllPatientsMonitored();
         seedAnthropometryAndWeights();
         seedTemperatures();
+        seedRiskAssessments();
         int alerts = alertService.evaluateForMonitoredPatients();
         log.info("Sandbox: raised {} alert(s) from monitored patients' reports", alerts);
     }
@@ -127,5 +133,34 @@ public class SandboxInitializer implements ApplicationRunner {
             seeded++;
         }
         log.info("Sandbox: seeded temperature series for {} patient(s)", seeded);
+    }
+
+    /**
+     * Records one NUTRIC assessment per patient, cycling four severity profiles (low → very high) by id
+     * so the demo shows a realistic spread of scores. Age band is derived from the patient. Idempotent:
+     * skips patients that already have an assessment.
+     */
+    private void seedRiskAssessments() {
+        List<Patient> patients = patientRepository.findByMonitoredTrue();
+        int seeded = 0;
+        for (Patient patient : patients) {
+            if (patient.getId() == null || nutritionService.latestRiskAssessment(patient.getId()).isPresent()) {
+                continue;
+            }
+            long n = patient.getId();
+            LocalDate assessedOn = LocalDate.now().minusDays(n % 4);
+            switch ((int) (n % 4)) {
+                case 0 -> nutritionService.recordRiskAssessment(patient.getId(), assessedOn,
+                        ApacheBand.LT_15, SofaBand.LT_6, ComorbidityBand.LE_1, AdmissionDelayBand.LT_1, null);
+                case 1 -> nutritionService.recordRiskAssessment(patient.getId(), assessedOn,
+                        ApacheBand.B15_19, SofaBand.B6_9, ComorbidityBand.LE_1, AdmissionDelayBand.LT_1, null);
+                case 2 -> nutritionService.recordRiskAssessment(patient.getId(), assessedOn,
+                        ApacheBand.B20_27, SofaBand.GE_10, ComorbidityBand.GE_2, AdmissionDelayBand.GE_1, null);
+                default -> nutritionService.recordRiskAssessment(patient.getId(), assessedOn,
+                        ApacheBand.GE_28, SofaBand.GE_10, ComorbidityBand.GE_2, AdmissionDelayBand.GE_1, Il6Band.GE_400);
+            }
+            seeded++;
+        }
+        log.info("Sandbox: seeded NUTRIC risk assessments for {} patient(s)", seeded);
     }
 }

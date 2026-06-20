@@ -17,6 +17,7 @@ import com.vaadin.flow.router.Route;
 import java.time.LocalDate;
 import t1tanic.nutritionicu.model.Patient;
 import t1tanic.nutritionicu.service.NutritionService;
+import t1tanic.nutritionicu.service.PatientOverviewService;
 import t1tanic.nutritionicu.service.PatientService;
 
 /** All patients, with anthropometry and a per-row editor for the doctor. */
@@ -26,12 +27,15 @@ public class PatientsView extends VerticalLayout {
 
     private final transient NutritionService nutritionService;
     private final transient PatientService patientService;
+    private final transient PatientOverviewService overviewService;
     private final Grid<Patient> grid = new Grid<>(Patient.class, false);
 
     public PatientsView(NutritionService nutritionService,
-                        PatientService patientService) {
+                        PatientService patientService,
+                        PatientOverviewService overviewService) {
         this.nutritionService = nutritionService;
         this.patientService = patientService;
+        this.overviewService = overviewService;
         setSizeFull();
         setPadding(true);
 
@@ -44,7 +48,7 @@ public class PatientsView extends VerticalLayout {
         header.setJustifyContentMode(JustifyContentMode.BETWEEN);
         add(header);
 
-        grid.addColumn(Patient::getMedicalRecordNumber).setHeader("NHC").setAutoWidth(true);
+        grid.addComponentColumn(this::nhcLink).setHeader("NHC").setAutoWidth(true);
         grid.addColumn(Patient::getFullName).setHeader("Name").setFlexGrow(2);
         grid.addColumn(Patient::getSex).setHeader("Sex").setAutoWidth(true);
         grid.addColumn(p -> dateText(p.getBirthDate())).setHeader("Born").setAutoWidth(true);
@@ -60,6 +64,14 @@ public class PatientsView extends VerticalLayout {
         grid.setItems(patientService.findAll());
         grid.setSizeFull();
         addAndExpand(grid);
+    }
+
+    /** The NHC rendered as a link that opens the patient's overview dialog. */
+    private Component nhcLink(Patient patient) {
+        Button link = new Button(patient.getMedicalRecordNumber(), e ->
+                new PatientOverviewDialog(patient.getId(), overviewService).open());
+        link.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE);
+        return link;
     }
 
     private Component actions(Patient patient) {
