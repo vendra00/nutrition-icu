@@ -1,6 +1,4 @@
 package t1tanic.nutritionicu.ui.energy;
-import t1tanic.nutritionicu.ui.common.UiFormat;
-import t1tanic.nutritionicu.ui.MainLayout;
 
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.details.Details;
@@ -18,6 +16,7 @@ import com.vaadin.flow.component.radiobutton.RadioButtonGroup;
 import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
+import com.vaadin.flow.theme.lumo.LumoUtility;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -32,21 +31,26 @@ import t1tanic.nutritionicu.repo.PatientRepository;
 import t1tanic.nutritionicu.service.HarrisBenedictCalculator;
 import t1tanic.nutritionicu.service.NutritionFormulary;
 import t1tanic.nutritionicu.service.NutritionRegimenCalculator;
+import t1tanic.nutritionicu.ui.MainLayout;
+import t1tanic.nutritionicu.ui.common.UiFormat;
 
 /**
  * Harris-Benedict energy-expenditure screen: pick a patient to seed sex/age/height/weight from their
  * anthropometry, choose a stress degree, and see basal (GEB) and total (GET) energy expenditure.
  * Once a GET is computed, choosing a nutrition formula shows its 24-hour administration plan
  * (infusion ml/h, macros, electrolytes, protein target). Reproduces the rccc.eu calculator.
+ *
+ * <p>All components (badges, grids) are built once and merely re-populated/toggled as inputs change;
+ * nothing is re-created per change event.
  */
 @Route(value = "energy", layout = MainLayout.class)
 @PageTitle("Energy expenditure · ICU Nutrition")
 public class EnergyExpenditureView extends VerticalLayout {
 
-    private final PatientRepository patientRepository;
-    private final HarrisBenedictCalculator calculator;
-    private final NutritionRegimenCalculator regimenCalculator;
-    private final NutritionFormulary formulary;
+    private final transient PatientRepository patientRepository;
+    private final transient HarrisBenedictCalculator calculator;
+    private final transient NutritionRegimenCalculator regimenCalculator;
+    private final transient NutritionFormulary formulary;
 
     private final ComboBox<Patient> patientBox = new ComboBox<>("Patient");
     private final ComboBox<Sex> sexBox = new ComboBox<>("Sex");
@@ -54,11 +58,25 @@ public class EnergyExpenditureView extends VerticalLayout {
     private final NumberField heightField = new NumberField("Height (cm)");
     private final NumberField weightField = new NumberField("Weight (kg)");
     private final ComboBox<StressFactor> stressBox = new ComboBox<>("Stress degree");
-    private final Div results = new Div();
     private final Details nutritionPanel = new Details();
     private final RadioButtonGroup<NutritionCategory> categoryBox = new RadioButtonGroup<>("Type");
     private final ComboBox<NutritionProduct> productBox = new ComboBox<>("Nutrition formula");
-    private final VerticalLayout regimenResults = new VerticalLayout();
+
+    // Energy result (built once)
+    private final Span energyPrompt = new Span("Enter sex, age, height and weight to calculate.");
+    private final Span totalBadge = new Span();
+    private final Grid<MetricRow> energyGrid = new Grid<>();
+
+    // Nutrition regimen (built once)
+    private final Span regimenPrompt = new Span();
+    private final Span infusionBadge = new Span();
+    private final Grid<MacroRow> macroGrid = new Grid<>();
+    private final Grid<ElectrolyteRow> electrolyteGrid = new Grid<>();
+    private final HorizontalLayout tables = new HorizontalLayout();
+    private final Span proteinTargetSpan = new Span();
+    private final Span deficitBadge = new Span();
+    private final Div deficitWrap = new Div(deficitBadge);
+    private final Span indicationsSpan = new Span();
 
     /** Last valid energy result and the actual weight behind it, for the nutrition step. */
     private EnergyExpenditureResult lastEnergy;
@@ -76,7 +94,12 @@ public class EnergyExpenditureView extends VerticalLayout {
         setPadding(true);
         add(new H2("Energy expenditure (Harris-Benedict)"));
 
-        // --- Panel 1: patient & inputs ---
+        add(inputsPanel(), resultPanel(), nutritionPanel(), note());
+        recompute();
+    }
+
+    // --- Panel 1: patient & inputs ---
+    private Details inputsPanel() {
         patientBox.setItems(patientRepository.findAll());
         patientBox.setItemLabelGenerator(p -> p.getFullName() + " (" + p.getMedicalRecordNumber() + ")");
         patientBox.addValueChangeListener(e -> prefill(e.getValue()));
@@ -94,52 +117,88 @@ public class EnergyExpenditureView extends VerticalLayout {
         weightField.addValueChangeListener(e -> recompute());
         stressBox.addValueChangeListener(e -> recompute());
 
-        VerticalLayout inputsContent = new VerticalLayout(patientBox, inputs);
-        inputsContent.setPadding(false);
-        Details inputsPanel = new Details("Patient & inputs", inputsContent);
-        inputsPanel.setOpened(true);
+        VerticalLayout content = new VerticalLayout(patientBox, inputs);
+        content.setPadding(false);
+        Details panel = new Details("Patient & inputs", content);
+        panel.setOpened(true);
+        return panel;
+    }
 
-        // --- Panel 2: energy expenditure result ---
-        Details resultPanel = new Details("Energy expenditure (GET)", results);
-        resultPanel.setOpened(true);
+    // --- Panel 2: energy expenditure result ---
+    private Details resultPanel() {
+        totalBadge.getElement().getThemeList().add("badge primary");
+        totalBadge.addClassName(LumoUtility.FontSize.LARGE);
+        totalBadge.getStyle().set("white-space", "normal").set("margin-bottom", "var(--lumo-space-s)");
 
-        // --- Panel 3: nutrition (hidden until a complete energy result exists) ---
+        energyGrid.addColumn(MetricRow::metric).setHeader("Metric").setAutoWidth(true).setFlexGrow(1);
+        energyGrid.addColumn(MetricRow::value).setHeader("Value").setAutoWidth(true);
+        energyGrid.setAllRowsVisible(true);
+        energyGrid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES, GridVariant.LUMO_COMPACT);
+        energyGrid.setWidth("34em");
+
+        Details panel = new Details("Energy expenditure (GET)", new Div(energyPrompt, totalBadge, energyGrid));
+        panel.setOpened(true);
+        return panel;
+    }
+
+    // --- Panel 3: nutrition (hidden until a complete energy result exists) ---
+    private Details nutritionPanel() {
         categoryBox.setItems(NutritionCategory.values());
         categoryBox.setItemLabelGenerator(NutritionCategory::label);
         categoryBox.setValue(NutritionCategory.ENTERAL);
         categoryBox.addValueChangeListener(e -> applyCategoryFilter());
+        categoryBox.getStyle().set("margin-right", "var(--lumo-space-xl)");
         productBox.setWidth("28em");
         productBox.setItemLabelGenerator(NutritionProduct::getName);
         productBox.addValueChangeListener(e -> renderRegimen());
         applyCategoryFilter();
-        regimenResults.setPadding(false);
-        regimenResults.setSpacing(false);
-        regimenResults.getStyle().set("gap", "var(--lumo-space-s)");
 
-        categoryBox.getStyle().set("margin-right", "var(--lumo-space-xl)");
+        configureMacroGrid();
+        configureElectrolyteGrid();
+        tables.add(new Div(sectionLabel("Delivered over 24 h"), macroGrid),
+                new Div(sectionLabel("Electrolytes (24 h)"), electrolyteGrid));
+        tables.getStyle().set("flex-wrap", "wrap").set("gap", "var(--lumo-space-l)");
+
+        infusionBadge.getElement().getThemeList().add("badge primary");
+        infusionBadge.addClassName(LumoUtility.FontSize.LARGE);
+        infusionBadge.getStyle().set("white-space", "normal");
+        proteinTargetSpan.getStyle().set("white-space", "normal");
+        deficitBadge.getElement().getThemeList().add("badge error");
+        deficitBadge.getStyle().set("white-space", "normal");
+        regimenPrompt.addClassName(LumoUtility.TextColor.SECONDARY);
+        indicationsSpan.addClassNames(LumoUtility.TextColor.SECONDARY);
+        indicationsSpan.getStyle().set("white-space", "normal");
+
+        VerticalLayout regimen = new VerticalLayout(regimenPrompt, infusionBadge, tables,
+                proteinTargetSpan, deficitWrap, indicationsSpan);
+        regimen.setPadding(false);
+        regimen.setSpacing(false);
+        regimen.getStyle().set("gap", "var(--lumo-space-s)");
+
         HorizontalLayout selectors = new HorizontalLayout(categoryBox, productBox);
         selectors.setPadding(false);
         selectors.setSpacing(true);
         selectors.getThemeList().add("spacing-xl");
         selectors.setAlignItems(FlexComponent.Alignment.START);
-        VerticalLayout nutritionContent = new VerticalLayout(selectors, regimenResults);
-        nutritionContent.setPadding(false);
-        nutritionContent.setSpacing(false);
-        nutritionContent.getStyle().set("gap", "var(--lumo-space-l)").set("padding-top", "var(--lumo-space-s)");
+
+        VerticalLayout content = new VerticalLayout(selectors, regimen);
+        content.setPadding(false);
+        content.setSpacing(false);
+        content.getStyle().set("gap", "var(--lumo-space-l)").set("padding-top", "var(--lumo-space-s)");
 
         nutritionPanel.setSummaryText("Choose nutrition");
-        nutritionPanel.add(nutritionContent);
+        nutritionPanel.add(content);
         nutritionPanel.setOpened(true);
         nutritionPanel.setVisible(false);
+        return nutritionPanel;
+    }
 
+    private Span note() {
         Span note = new Span("Decision support only. Reproduces the rccc.eu Harris-Benedict "
                 + "calculator: total = basal × (0.1 activity + stress factor), with an obesity weight "
                 + "adjustment above BMI 30. The infusion rate delivers GET over 24 h.");
-        note.getStyle().set("font-size", "var(--lumo-font-size-xs)")
-                .set("color", "var(--lumo-secondary-text-color)");
-
-        add(inputsPanel, resultPanel, nutritionPanel, note);
-        recompute();
+        note.addClassNames(LumoUtility.FontSize.XSMALL, LumoUtility.TextColor.SECONDARY);
+        return note;
     }
 
     private void prefill(Patient patient) {
@@ -155,56 +214,32 @@ public class EnergyExpenditureView extends VerticalLayout {
     }
 
     private void recompute() {
-        results.removeAll();
         Sex sex = sexBox.getValue();
         Double age = ageField.getValue();
         Double height = heightField.getValue();
         Double weight = weightField.getValue();
         StressFactor stress = stressBox.getValue();
 
-        if (sex == null || stress == null || !positive(age) || !positive(height) || !positive(weight)) {
-            results.add(new Span("Enter sex, age, height and weight to calculate."));
+        boolean complete = sex != null && stress != null
+                && positive(age) && positive(height) && positive(weight);
+        energyPrompt.setVisible(!complete);
+        totalBadge.setVisible(complete);
+        energyGrid.setVisible(complete);
+        if (!complete) {
             lastEnergy = null;
             nutritionPanel.setVisible(false);
             renderRegimen();
             return;
         }
 
-        EnergyExpenditureResult r = calculator.calculate(
-                sex, weight, height, age.intValue(), stress);
+        EnergyExpenditureResult r = calculator.calculate(sex, weight, height, age.intValue(), stress);
         lastEnergy = r;
         lastActualWeightKg = weight;
         nutritionPanel.setVisible(true);
 
-        Span total = new Span("GET (total): %d kcal/day".formatted(r.totalKcalPerDay()));
-        total.getElement().getThemeList().add("badge primary");
-        total.getStyle().set("font-size", "var(--lumo-font-size-l)").set("white-space", "normal")
-                .set("margin-bottom", "var(--lumo-space-s)");
-
-        results.add(total, energyGrid(r));
+        totalBadge.setText("GET (total): %d kcal/day".formatted(r.totalKcalPerDay()));
+        energyGrid.setItems(metricRows(r));
         renderRegimen();
-    }
-
-    private record MetricRow(String metric, String value) {
-    }
-
-    /** The Harris-Benedict result as a metric/value table. */
-    private static Grid<MetricRow> energyGrid(EnergyExpenditureResult r) {
-        Grid<MetricRow> grid = new Grid<>();
-        grid.addColumn(MetricRow::metric).setHeader("Metric").setAutoWidth(true).setFlexGrow(1);
-        grid.addColumn(MetricRow::value).setHeader("Value").setAutoWidth(true);
-        grid.setItems(
-                new MetricRow("GEB (basal)", r.basalKcalPerDay() + " kcal/day"),
-                new MetricRow("Per kg (actual weight)",
-                        UiFormat.number(r.kcalPerKgPerDay()) + " kcal/kg/day"),
-                new MetricRow("BMI", UiFormat.number(r.bmi())),
-                new MetricRow("Weight class", weightBasis(r)),
-                new MetricRow("Ideal body weight", UiFormat.number(r.idealBodyWeightKg()) + " kg"),
-                new MetricRow("Weight used in equation", UiFormat.number(r.weightUsedKg()) + " kg"));
-        grid.setAllRowsVisible(true);
-        grid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES, GridVariant.LUMO_COMPACT);
-        grid.setWidth("34em");
-        return grid;
     }
 
     /** Restricts the formula dropdown to the selected category, clearing a now-hidden selection. */
@@ -217,57 +252,64 @@ public class EnergyExpenditureView extends VerticalLayout {
     }
 
     private void renderRegimen() {
-        regimenResults.removeAll();
         NutritionProduct product = productBox.getValue();
-        if (lastEnergy == null) {
-            regimenResults.add(muted("Calculate energy expenditure first."));
+        if (lastEnergy == null || product == null) {
+            regimenPrompt.setText(lastEnergy == null
+                    ? "Calculate energy expenditure first."
+                    : "Select a formula to see the administration plan.");
+            setRegimenContentVisible(false);
             return;
         }
-        if (product == null) {
-            regimenResults.add(muted("Select a formula to see the administration plan."));
-            return;
-        }
+        setRegimenContentVisible(true);
 
         NutritionRegimen plan = regimenCalculator.calculate(lastEnergy, lastActualWeightKg, product);
 
         String osm = product.getOsmolarity() == null ? "" : ", " + product.getOsmolarity() + " mOsm/l";
-        Span rate = new Span("Infusion: %d ml/h  (%d ml/day, %s kcal/ml%s)".formatted(
+        infusionBadge.setText("Infusion: %d ml/h  (%d ml/day, %s kcal/ml%s)".formatted(
                 plan.infusionMlPerHour(), plan.dailyVolumeMl(),
                 UiFormat.number(product.getDensityKcalPerMl()), osm));
-        rate.getElement().getThemeList().add("badge primary");
-        rate.getStyle().set("font-size", "var(--lumo-font-size-l)").set("white-space", "normal");
+        macroGrid.setItems(macroRows(plan));
+        electrolyteGrid.setItems(electrolyteRows(plan.electrolytes()));
 
-        Span proteinTarget = new Span(
-                "Protein target: %s g/day  (%s g/kg of %s)".formatted(
-                        UiFormat.number(plan.proteinTargetG()),
-                        UiFormat.number(plan.proteinTargetPerKg()), plan.proteinBasis()));
-        proteinTarget.getStyle().set("white-space", "normal");
+        proteinTargetSpan.setText("Protein target: %s g/day  (%s g/kg of %s)".formatted(
+                UiFormat.number(plan.proteinTargetG()),
+                UiFormat.number(plan.proteinTargetPerKg()), plan.proteinBasis()));
 
-        HorizontalLayout tables = new HorizontalLayout(
-                new Div(sectionLabel("Delivered over 24 h"), macroGrid(plan)),
-                new Div(sectionLabel("Electrolytes (24 h)"), electrolyteGrid(plan.electrolytes())));
-        tables.getStyle().set("flex-wrap", "wrap").set("gap", "var(--lumo-space-l)");
-
-        regimenResults.add(rate, tables, proteinTarget);
-        if (plan.proteinDeficitG() > 0) {
-            Span deficit = new Span("Protein deficit vs target: %d g/day".formatted(plan.proteinDeficitG()));
-            deficit.getElement().getThemeList().add("badge error");
-            deficit.getStyle().set("white-space", "normal");
-            regimenResults.add(new Div(deficit));
+        boolean hasDeficit = plan.proteinDeficitG() > 0;
+        deficitWrap.setVisible(hasDeficit);
+        if (hasDeficit) {
+            deficitBadge.setText("Protein deficit vs target: %d g/day".formatted(plan.proteinDeficitG()));
         }
-        if (product.getIndications() != null && !product.getIndications().isBlank()) {
-            regimenResults.add(muted("Indications: " + product.getIndications()));
+
+        boolean hasIndications = product.getIndications() != null && !product.getIndications().isBlank();
+        indicationsSpan.setVisible(hasIndications);
+        if (hasIndications) {
+            indicationsSpan.setText("Indications: " + product.getIndications());
         }
     }
 
-    private record MacroRow(String nutrient, String amount, String share) {
+    /** Shows the prompt OR the regimen content, never both. */
+    private void setRegimenContentVisible(boolean visible) {
+        regimenPrompt.setVisible(!visible);
+        infusionBadge.setVisible(visible);
+        tables.setVisible(visible);
+        proteinTargetSpan.setVisible(visible);
+        deficitWrap.setVisible(visible);
+        indicationsSpan.setVisible(visible);
     }
 
-    private record ElectrolyteRow(String name, String amount) {
+    private static List<MetricRow> metricRows(EnergyExpenditureResult r) {
+        return List.of(
+                new MetricRow("GEB (basal)", r.basalKcalPerDay() + " kcal/day"),
+                new MetricRow("Per kg (actual weight)",
+                        UiFormat.number(r.kcalPerKgPerDay()) + " kcal/kg/day"),
+                new MetricRow("BMI", UiFormat.number(r.bmi())),
+                new MetricRow("Weight class", weightBasis(r)),
+                new MetricRow("Ideal body weight", UiFormat.number(r.idealBodyWeightKg()) + " kg"),
+                new MetricRow("Weight used in equation", UiFormat.number(r.weightUsedKg()) + " kg"));
     }
 
-    /** Macronutrients delivered over 24 h: amount and share of calories. */
-    private static Grid<MacroRow> macroGrid(NutritionRegimen plan) {
+    private static List<MacroRow> macroRows(NutritionRegimen plan) {
         List<MacroRow> rows = new ArrayList<>(List.of(
                 new MacroRow("Protein", plan.proteinG() + " g", plan.proteinPercent() + "%"),
                 new MacroRow("Carbohydrate", plan.carbG() + " g", plan.carbPercent() + "%"),
@@ -276,49 +318,45 @@ public class EnergyExpenditureView extends VerticalLayout {
         if (plan.fiberApplicable()) {
             rows.add(new MacroRow("Fibre", UiFormat.number(plan.fiberG()) + " g", ""));
         }
-        Grid<MacroRow> grid = new Grid<>();
-        grid.addColumn(MacroRow::nutrient).setHeader("Nutrient").setAutoWidth(true).setFlexGrow(1);
-        grid.addColumn(MacroRow::amount).setHeader("Amount / 24 h")
-                .setTextAlign(ColumnTextAlign.END).setAutoWidth(true);
-        grid.addColumn(MacroRow::share).setHeader("% kcal")
-                .setTextAlign(ColumnTextAlign.END).setAutoWidth(true);
-        grid.setItems(rows);
-        grid.setAllRowsVisible(true);
-        grid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES, GridVariant.LUMO_COMPACT);
-        grid.setWidth("28em");
-        return grid;
+        return rows;
     }
 
-    /** Electrolytes delivered over 24 h, grams. */
-    private static Grid<ElectrolyteRow> electrolyteGrid(NutritionRegimen.Electrolytes el) {
-        Grid<ElectrolyteRow> grid = new Grid<>();
-        grid.addColumn(ElectrolyteRow::name).setHeader("Electrolyte").setAutoWidth(true).setFlexGrow(1);
-        grid.addColumn(ElectrolyteRow::amount).setHeader("g / 24 h")
-                .setTextAlign(ColumnTextAlign.END).setAutoWidth(true);
-        grid.setItems(
+    private static List<ElectrolyteRow> electrolyteRows(NutritionRegimen.Electrolytes el) {
+        return List.of(
                 new ElectrolyteRow("Sodium (Na)", UiFormat.number(el.sodiumG())),
                 new ElectrolyteRow("Potassium (K)", UiFormat.number(el.potassiumG())),
                 new ElectrolyteRow("Chloride (Cl)", UiFormat.number(el.chlorideG())),
                 new ElectrolyteRow("Calcium (Ca)", UiFormat.number(el.calciumG())),
                 new ElectrolyteRow("Magnesium (Mg)", UiFormat.number(el.magnesiumG())),
                 new ElectrolyteRow("Phosphorus (P)", UiFormat.number(el.phosphorusG())));
-        grid.setAllRowsVisible(true);
-        grid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES, GridVariant.LUMO_COMPACT);
-        grid.setWidth("22em");
-        return grid;
     }
 
-    private static Span muted(String text) {
-        Span span = new Span(text);
-        span.getStyle().set("color", "var(--lumo-secondary-text-color)").set("white-space", "normal");
-        return span;
+    private void configureMacroGrid() {
+        macroGrid.addColumn(MacroRow::nutrient).setHeader("Nutrient").setAutoWidth(true).setFlexGrow(1);
+        macroGrid.addColumn(MacroRow::amount).setHeader("Amount / 24 h")
+                .setTextAlign(ColumnTextAlign.END).setAutoWidth(true);
+        macroGrid.addColumn(MacroRow::share).setHeader("% kcal")
+                .setTextAlign(ColumnTextAlign.END).setAutoWidth(true);
+        macroGrid.setAllRowsVisible(true);
+        macroGrid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES, GridVariant.LUMO_COMPACT);
+        macroGrid.setWidth("28em");
+    }
+
+    private void configureElectrolyteGrid() {
+        electrolyteGrid.addColumn(ElectrolyteRow::name).setHeader("Electrolyte")
+                .setAutoWidth(true).setFlexGrow(1);
+        electrolyteGrid.addColumn(ElectrolyteRow::amount).setHeader("g / 24 h")
+                .setTextAlign(ColumnTextAlign.END).setAutoWidth(true);
+        electrolyteGrid.setAllRowsVisible(true);
+        electrolyteGrid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES, GridVariant.LUMO_COMPACT);
+        electrolyteGrid.setWidth("22em");
     }
 
     /** A bold sub-heading for a block within the regimen output. */
     private static Span sectionLabel(String text) {
         Span span = new Span(text);
-        span.getStyle().set("font-weight", "600").set("display", "block")
-                .set("margin-bottom", "var(--lumo-space-xs)");
+        span.addClassName(LumoUtility.FontWeight.SEMIBOLD);
+        span.getStyle().set("display", "block").set("margin-bottom", "var(--lumo-space-xs)");
         return span;
     }
 
@@ -331,5 +369,14 @@ public class EnergyExpenditureView extends VerticalLayout {
 
     private static boolean positive(Double value) {
         return value != null && value > 0;
+    }
+
+    private record MetricRow(String metric, String value) {
+    }
+
+    private record MacroRow(String nutrient, String amount, String share) {
+    }
+
+    private record ElectrolyteRow(String name, String amount) {
     }
 }

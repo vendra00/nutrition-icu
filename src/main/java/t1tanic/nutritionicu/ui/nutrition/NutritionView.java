@@ -34,9 +34,9 @@ import t1tanic.nutritionicu.service.NutritionService;
 @PageTitle("Nutrition · ICU Nutrition")
 public class NutritionView extends VerticalLayout {
 
-    private final PatientRepository patientRepository;
-    private final NutritionService nutritionService;
-    private final LabResultRepository labResultRepository;
+    private final transient PatientRepository patientRepository;
+    private final transient NutritionService nutritionService;
+    private final transient LabResultRepository labResultRepository;
     private final ComboBox<Patient> patientBox = new ComboBox<>("Patient");
     private final VerticalLayout details = new VerticalLayout();
 

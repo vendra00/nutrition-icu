@@ -29,8 +29,8 @@ import t1tanic.nutritionicu.service.AnalyteCatalog;
 @PageTitle("Analytics · ICU Nutrition")
 public class AnalyticsView extends VerticalLayout {
 
-    private final LabResultRepository resultRepository;
-    private final AnalyteCatalog analyteCatalog;
+    private final transient LabResultRepository resultRepository;
+    private final transient AnalyteCatalog analyteCatalog;
 
     private final ComboBox<Patient> patientBox = new ComboBox<>("Patient");
     private final ComboBox<AnalyteOption> analyteBox = new ComboBox<>("Analyte");

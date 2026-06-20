@@ -23,7 +23,7 @@ import t1tanic.nutritionicu.service.NutritionService;
  */
 public class WeightHistoryDialog extends Dialog {
 
-    private final NutritionService nutritionService;
+    private final transient NutritionService nutritionService;
     private final Long patientId;
 
     private final DatePicker date = new DatePicker("Date");

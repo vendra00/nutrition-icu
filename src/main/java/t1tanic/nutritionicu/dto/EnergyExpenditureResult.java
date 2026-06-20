@@ -1,5 +1,6 @@
 package t1tanic.nutritionicu.dto;
 
+import java.io.Serializable;
 import t1tanic.nutritionicu.model.enums.StressFactor;
 import t1tanic.nutritionicu.model.enums.WeightClass;
 
@@ -23,5 +24,5 @@ public record EnergyExpenditureResult(
         int basalKcalPerDay,
         int totalKcalPerDay,
         double kcalPerKgPerDay,
-        StressFactor stress) {
+        StressFactor stress) implements Serializable {
 }

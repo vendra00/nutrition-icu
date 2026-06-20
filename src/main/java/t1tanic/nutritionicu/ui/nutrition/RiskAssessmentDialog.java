@@ -75,7 +75,7 @@ public class RiskAssessmentDialog extends Dialog {
         select.addValueChangeListener(e -> recomputeFromListener());
     }
 
-    private NutritionService service;
+    private transient NutritionService service;
     private AgeBand ageBand;
 
     private void recompute(AgeBand ageBand, NutritionService nutritionService) {

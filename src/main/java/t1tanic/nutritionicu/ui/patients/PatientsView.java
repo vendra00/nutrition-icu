@@ -20,9 +20,9 @@ import t1tanic.nutritionicu.service.PatientService;
 @PageTitle("Patients · ICU Nutrition")
 public class PatientsView extends VerticalLayout {
 
-    private final PatientRepository patientRepository;
-    private final NutritionService nutritionService;
-    private final PatientService patientService;
+    private final transient PatientRepository patientRepository;
+    private final transient NutritionService nutritionService;
+    private final transient PatientService patientService;
     private final Grid<Patient> grid = new Grid<>(Patient.class, false);
 
     public PatientsView(PatientRepository patientRepository,
