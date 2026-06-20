@@ -19,8 +19,8 @@ import t1tanic.nutritionicu.model.enums.Sex;
 import t1tanic.nutritionicu.model.enums.SofaBand;
 import t1tanic.nutritionicu.repo.DoctorRepository;
 import t1tanic.nutritionicu.repo.PatientRepository;
-import t1tanic.nutritionicu.service.AlertService;
-import t1tanic.nutritionicu.service.NutritionService;
+import t1tanic.nutritionicu.service.alert.AlertService;
+import t1tanic.nutritionicu.service.nutrition.NutritionService;
 
 /**
  * Seeds sandbox/demo data on startup: a handful of doctors, and (for now) marks

@@ -15,7 +15,7 @@ import t1tanic.nutritionicu.model.enums.ApacheBand;
 import t1tanic.nutritionicu.model.enums.ComorbidityBand;
 import t1tanic.nutritionicu.model.enums.Il6Band;
 import t1tanic.nutritionicu.model.enums.SofaBand;
-import t1tanic.nutritionicu.service.NutritionService;
+import t1tanic.nutritionicu.service.nutrition.NutritionService;
 
 /**
  * Banded NUTRIC entry: the doctor selects each severity band from a dropdown; age is

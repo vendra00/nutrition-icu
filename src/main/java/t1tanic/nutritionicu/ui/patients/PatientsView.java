@@ -16,9 +16,9 @@ import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import java.time.LocalDate;
 import t1tanic.nutritionicu.model.Patient;
-import t1tanic.nutritionicu.service.NutritionService;
-import t1tanic.nutritionicu.service.PatientOverviewService;
-import t1tanic.nutritionicu.service.PatientService;
+import t1tanic.nutritionicu.service.nutrition.NutritionService;
+import t1tanic.nutritionicu.service.patient.PatientOverviewService;
+import t1tanic.nutritionicu.service.patient.PatientService;
 
 /** All patients, with anthropometry and a per-row editor for the doctor. */
 @Route(value = "patients", layout = MainLayout.class)

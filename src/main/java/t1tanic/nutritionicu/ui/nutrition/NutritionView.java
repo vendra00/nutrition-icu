@@ -26,9 +26,9 @@ import t1tanic.nutritionicu.model.Patient;
 import t1tanic.nutritionicu.model.TemperatureMeasurement;
 import t1tanic.nutritionicu.model.WeightMeasurement;
 import t1tanic.nutritionicu.model.enums.NutricBand;
-import t1tanic.nutritionicu.service.LabResultService;
-import t1tanic.nutritionicu.service.NutritionService;
-import t1tanic.nutritionicu.service.PatientService;
+import t1tanic.nutritionicu.service.lab.LabResultService;
+import t1tanic.nutritionicu.service.nutrition.NutritionService;
+import t1tanic.nutritionicu.service.patient.PatientService;
 
 /**
  * Nutrition-protocol screen: pick a patient to see screening anthropometry, the

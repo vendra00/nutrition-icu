@@ -18,7 +18,7 @@ import t1tanic.nutritionicu.dto.PatientOverview;
 import t1tanic.nutritionicu.dto.PatientOverview.Anthropometry;
 import t1tanic.nutritionicu.dto.PatientOverview.Identity;
 import t1tanic.nutritionicu.dto.PatientOverview.Risk;
-import t1tanic.nutritionicu.service.PatientOverviewService;
+import t1tanic.nutritionicu.service.patient.PatientOverviewService;
 
 /**
  * Read-only overview of a patient's key nutrition values and basic stats, opened from the NHC link in

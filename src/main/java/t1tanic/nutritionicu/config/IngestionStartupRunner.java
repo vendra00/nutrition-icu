@@ -5,7 +5,7 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
-import t1tanic.nutritionicu.service.LabTestService;
+import t1tanic.nutritionicu.service.ingestion.LabTestService;
 
 /**
  * Ingests the ingestion root once at startup. Enabled by default; disable with

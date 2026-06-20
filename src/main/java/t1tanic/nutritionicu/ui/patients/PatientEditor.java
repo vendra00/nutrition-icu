@@ -13,7 +13,7 @@ import com.vaadin.flow.component.textfield.TextField;
 import t1tanic.nutritionicu.dto.PatientDetails;
 import t1tanic.nutritionicu.model.Patient;
 import t1tanic.nutritionicu.model.enums.Sex;
-import t1tanic.nutritionicu.service.PatientService;
+import t1tanic.nutritionicu.service.patient.PatientService;
 import t1tanic.nutritionicu.ui.common.UiFormat;
 
 /**

@@ -7,7 +7,7 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import t1tanic.nutritionicu.dto.AlertSummary;
-import t1tanic.nutritionicu.service.AlertService;
+import t1tanic.nutritionicu.service.alert.AlertService;
 
 /** All alerts raised for monitored patients, newest first. */
 @Route(value = "alerts", layout = MainLayout.class)

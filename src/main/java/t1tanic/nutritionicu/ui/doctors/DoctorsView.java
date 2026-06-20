@@ -7,7 +7,7 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import t1tanic.nutritionicu.model.Doctor;
-import t1tanic.nutritionicu.service.DoctorService;
+import t1tanic.nutritionicu.service.patient.DoctorService;
 
 /** Doctors and the sectors they belong to. */
 @Route(value = "doctors", layout = MainLayout.class)

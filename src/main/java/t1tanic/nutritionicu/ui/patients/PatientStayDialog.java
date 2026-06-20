@@ -6,7 +6,7 @@ import com.vaadin.flow.component.datepicker.DatePicker;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import t1tanic.nutritionicu.model.Patient;
-import t1tanic.nutritionicu.service.PatientService;
+import t1tanic.nutritionicu.service.patient.PatientService;
 import t1tanic.nutritionicu.ui.common.UiFormat;
 
 /** Edits a patient's admission and discharge (release) dates. */

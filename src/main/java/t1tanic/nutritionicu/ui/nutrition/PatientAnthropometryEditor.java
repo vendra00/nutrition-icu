@@ -11,7 +11,7 @@ import com.vaadin.flow.component.textfield.NumberField;
 import java.util.List;
 import t1tanic.nutritionicu.dto.NutritionMetrics;
 import t1tanic.nutritionicu.model.Patient;
-import t1tanic.nutritionicu.service.NutritionService;
+import t1tanic.nutritionicu.service.nutrition.NutritionService;
 import t1tanic.nutritionicu.ui.common.MetricsTable;
 
 /**

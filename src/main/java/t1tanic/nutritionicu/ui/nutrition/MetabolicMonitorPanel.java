@@ -10,7 +10,7 @@ import java.time.ZoneId;
 import java.util.List;
 import t1tanic.nutritionicu.model.LabResult;
 import t1tanic.nutritionicu.model.Patient;
-import t1tanic.nutritionicu.service.LabResultService;
+import t1tanic.nutritionicu.service.lab.LabResultService;
 import t1tanic.nutritionicu.ui.nutrition.MetabolicInterpreter.Interpretation;
 
 /**

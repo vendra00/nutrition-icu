@@ -8,7 +8,7 @@ import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import t1tanic.nutritionicu.model.NutritionProduct;
 import t1tanic.nutritionicu.repo.NutritionProductRepository;
-import t1tanic.nutritionicu.service.NutritionFormularyData;
+import t1tanic.nutritionicu.service.nutrition.NutritionFormularyData;
 import tools.jackson.databind.ObjectMapper;
 
 /**

@@ -11,9 +11,9 @@ import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.theme.lumo.LumoUtility;
 import t1tanic.nutritionicu.dto.AlertSummary;
-import t1tanic.nutritionicu.service.AlertService;
-import t1tanic.nutritionicu.service.DoctorService;
-import t1tanic.nutritionicu.service.PatientService;
+import t1tanic.nutritionicu.service.alert.AlertService;
+import t1tanic.nutritionicu.service.patient.DoctorService;
+import t1tanic.nutritionicu.service.patient.PatientService;
 
 /** Landing overview: headline counts and the most recent alerts. */
 @Route(value = "", layout = MainLayout.class)

@@ -5,7 +5,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import t1tanic.nutritionicu.dto.IngestionSummary;
-import t1tanic.nutritionicu.service.LabTestService;
+import t1tanic.nutritionicu.service.ingestion.LabTestService;
 
 /** HTTP entry point for ingesting lab-report PDFs from a chosen folder. */
 @RestController

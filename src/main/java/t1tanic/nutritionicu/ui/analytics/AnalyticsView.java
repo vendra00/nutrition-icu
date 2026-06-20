@@ -26,9 +26,9 @@ import java.util.Objects;
 import java.util.Set;
 import t1tanic.nutritionicu.model.LabResult;
 import t1tanic.nutritionicu.model.Patient;
-import t1tanic.nutritionicu.service.AnalyteCatalog;
-import t1tanic.nutritionicu.service.LabResultService;
-import t1tanic.nutritionicu.service.PatientService;
+import t1tanic.nutritionicu.service.lab.AnalyteCatalog;
+import t1tanic.nutritionicu.service.lab.LabResultService;
+import t1tanic.nutritionicu.service.patient.PatientService;
 
 /** Pick a patient and an analyte to see its value-over-time trend and the underlying readings. */
 @Route(value = "analytics", layout = MainLayout.class)
