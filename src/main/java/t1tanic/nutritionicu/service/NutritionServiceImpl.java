@@ -9,6 +9,7 @@ import t1tanic.nutritionicu.dto.NutricScore;
 import t1tanic.nutritionicu.dto.NutritionMetrics;
 import t1tanic.nutritionicu.model.NutritionRiskAssessment;
 import t1tanic.nutritionicu.model.Patient;
+import t1tanic.nutritionicu.model.TemperatureMeasurement;
 import t1tanic.nutritionicu.model.WeightMeasurement;
 import t1tanic.nutritionicu.model.enums.AdmissionDelayBand;
 import t1tanic.nutritionicu.model.enums.AgeBand;
@@ -20,6 +21,7 @@ import t1tanic.nutritionicu.model.enums.Sex;
 import t1tanic.nutritionicu.model.enums.SofaBand;
 import t1tanic.nutritionicu.repo.NutritionRiskAssessmentRepository;
 import t1tanic.nutritionicu.repo.PatientRepository;
+import t1tanic.nutritionicu.repo.TemperatureMeasurementRepository;
 import t1tanic.nutritionicu.repo.WeightMeasurementRepository;
 
 /**
@@ -33,13 +35,16 @@ public class NutritionServiceImpl implements NutritionService {
 
     private final PatientRepository patientRepository;
     private final WeightMeasurementRepository weightRepository;
+    private final TemperatureMeasurementRepository temperatureRepository;
     private final NutritionRiskAssessmentRepository riskRepository;
 
     public NutritionServiceImpl(PatientRepository patientRepository,
                                 WeightMeasurementRepository weightRepository,
+                                TemperatureMeasurementRepository temperatureRepository,
                                 NutritionRiskAssessmentRepository riskRepository) {
         this.patientRepository = patientRepository;
         this.weightRepository = weightRepository;
+        this.temperatureRepository = temperatureRepository;
         this.riskRepository = riskRepository;
     }
 
@@ -89,6 +94,35 @@ public class NutritionServiceImpl implements NutritionService {
     @Transactional(readOnly = true)
     public List<WeightMeasurement> weightHistory(Long patientId) {
         return weightRepository.findByPatientIdOrderByMeasuredOnAsc(patientId);
+    }
+
+    @Override
+    @Transactional
+    public TemperatureMeasurement recordTemperature(Long patientId, LocalDate date, Double temperatureCelsius) {
+        Patient patient = patient(patientId);
+        TemperatureMeasurement measurement = temperatureRepository.findByPatientIdAndMeasuredOn(patientId, date)
+                .orElseGet(() -> new TemperatureMeasurement(patient, date, temperatureCelsius));
+        measurement.setTemperatureCelsius(temperatureCelsius);
+        return temperatureRepository.save(measurement);
+    }
+
+    @Override
+    @Transactional
+    public void deleteTemperature(Long temperatureMeasurementId) {
+        temperatureRepository.findById(temperatureMeasurementId)
+                .ifPresent(temperatureRepository::delete);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<TemperatureMeasurement> temperatureHistory(Long patientId) {
+        return temperatureRepository.findByPatientIdOrderByMeasuredOnAsc(patientId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<TemperatureMeasurement> latestTemperature(Long patientId) {
+        return temperatureRepository.findTopByPatientIdOrderByMeasuredOnDesc(patientId);
     }
 
     @Override

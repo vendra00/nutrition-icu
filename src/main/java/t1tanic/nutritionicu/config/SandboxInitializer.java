@@ -48,6 +48,7 @@ public class SandboxInitializer implements ApplicationRunner {
         seedDoctors();
         markAllPatientsMonitored();
         seedAnthropometryAndWeights();
+        seedTemperatures();
         int alerts = alertService.evaluateForMonitoredPatients();
         log.info("Sandbox: raised {} alert(s) from monitored patients' reports", alerts);
     }
@@ -100,5 +101,31 @@ public class SandboxInitializer implements ApplicationRunner {
             seeded++;
         }
         log.info("Sandbox: seeded anthropometry + weight series for {} patient(s)", seeded);
+    }
+
+    /**
+     * Gives each patient a 10-day daily body-temperature series with a plausible mid-window febrile
+     * episode (peak ≈ 39 °C) settling back to normal — so the temperature trend has demo data.
+     * Tracking only; not used in any calculation. Idempotent: skips patients that already have any.
+     */
+    private void seedTemperatures() {
+        // Days from a normal baseline: rises into a fever spike, then settles.
+        double[] deltas = {0.1, 0.4, 0.9, 1.7, 2.2, 1.5, 0.8, 0.4, 0.2, 0.0};
+        List<Patient> patients = patientRepository.findByMonitoredTrue();
+        int seeded = 0;
+        for (Patient patient : patients) {
+            if (patient.getId() == null || !nutritionService.temperatureHistory(patient.getId()).isEmpty()) {
+                continue;
+            }
+            long n = patient.getId();
+            double base = 36.7 + (n % 5) * 0.1;                       // 36.7–37.1 baseline
+            LocalDate start = LocalDate.now().minusDays(deltas.length - 1 + (int) (n % 3));
+            for (int day = 0; day < deltas.length; day++) {
+                double t = Math.round((base + deltas[day]) * 10.0) / 10.0;
+                nutritionService.recordTemperature(patient.getId(), start.plusDays(day), t);
+            }
+            seeded++;
+        }
+        log.info("Sandbox: seeded temperature series for {} patient(s)", seeded);
     }
 }

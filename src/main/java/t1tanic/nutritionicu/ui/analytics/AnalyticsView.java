@@ -85,6 +85,7 @@ public class AnalyticsView extends VerticalLayout {
 
         patientBox.setItems(patientRepository.findAll());
         patientBox.setItemLabelGenerator(p -> p.getFullName() + " (" + p.getMedicalRecordNumber() + ")");
+        patientBox.setWidth("18em");
         patientBox.addValueChangeListener(e -> onPatientSelected(e.getValue()));
 
         modeBox.setItems(Mode.values());
@@ -94,12 +95,13 @@ public class AnalyticsView extends VerticalLayout {
 
         analyteBox.setItemLabelGenerator(AnalyteOption::label);
         analyteBox.setEnabled(false);
-        analyteBox.setHelperText("One analyte: absolute values + reference band. "
-                + "Several: overlaid per the comparison mode.");
+        analyteBox.setWidth("22em");
+        analyteBox.setHelperText("One: absolute + reference band · several: overlaid.");
         analyteBox.addValueChangeListener(e -> onAnalytesChanged());
 
         HorizontalLayout controls = new HorizontalLayout(patientBox, modeBox, analyteBox);
-        controls.setAlignItems(Alignment.END);
+        controls.setAlignItems(Alignment.START);
+        controls.setSpacing(true);
         add(controls);
 
         chartHolder.setWidthFull();

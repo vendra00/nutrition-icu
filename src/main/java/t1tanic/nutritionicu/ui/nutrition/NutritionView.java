@@ -24,6 +24,7 @@ import java.util.Optional;
 import t1tanic.nutritionicu.dto.NutritionMetrics;
 import t1tanic.nutritionicu.model.NutritionRiskAssessment;
 import t1tanic.nutritionicu.model.Patient;
+import t1tanic.nutritionicu.model.TemperatureMeasurement;
 import t1tanic.nutritionicu.model.WeightMeasurement;
 import t1tanic.nutritionicu.model.enums.NutricBand;
 import t1tanic.nutritionicu.repo.LabResultRepository;
@@ -94,13 +95,16 @@ public class NutritionView extends VerticalLayout {
             });
             dialog.open();
         });
+        Button temperature = new Button("Manage temperature", e ->
+                new TemperatureHistoryDialog(patient, nutritionService).open());
 
         details.add(panel("Anthropometry & metrics",
-                metricsTable(patient, m), new HorizontalLayout(bodyData, weights)));
+                metricsTable(patient, m), new HorizontalLayout(bodyData, weights, temperature)));
         details.add(panel("Nutritional risk (NUTRIC)", riskPanel(patient)));
         details.add(panel("Metabolic monitoring (lab)",
                 new MetabolicMonitorPanel(patient, labResultRepository)));
         details.add(panel("Weight trend", weightTrend(patient)));
+        details.add(panel("Temperature trend", temperatureTrend(patient)));
     }
 
     /** Wraps a section's content in an open collapsible panel, matching the Energy tab's accordions. */
@@ -128,6 +132,24 @@ public class NutritionView extends VerticalLayout {
         return new TrendChart(points, null, null, "kg");
     }
 
+    private TrendChart temperatureTrend(Patient patient) {
+        List<TemperatureMeasurement> history = nutritionService.temperatureHistory(patient.getId());
+        List<TrendChart.Point> points = history.stream()
+                .filter(t -> t.getTemperatureCelsius() != null)
+                .map(t -> new TrendChart.Point(
+                        t.getMeasuredOn().atStartOfDay(ZoneId.systemDefault()).toInstant(),
+                        t.getTemperatureCelsius()))
+                .toList();
+        return new TrendChart(points, null, null, "°C");
+    }
+
+    /** The patient's most recent temperature as "{@code 38.5 °C · 12-06-2026}", or the empty placeholder. */
+    private String latestTemperatureText(Patient patient) {
+        return nutritionService.latestTemperature(patient.getId())
+                .map(t -> UiFormat.number(t.getTemperatureCelsius()) + " °C · " + UiFormat.date(t.getMeasuredOn()))
+                .orElse(UiFormat.EMPTY);
+    }
+
     /** Patient anthropometry and derived metrics, as a compact Metric/Value table. */
     private Grid<MetricRow> metricsTable(Patient patient, NutritionMetrics m) {
         List<MetricRow> rows = List.of(
@@ -136,6 +158,7 @@ public class NutritionView extends VerticalLayout {
                 new MetricRow("Height", UiFormat.number(patient.getHeightCm()) + " cm", null),
                 new MetricRow("Current weight", UiFormat.number(patient.getCurrentWeightKg()) + " kg", null),
                 new MetricRow("Usual weight", UiFormat.number(patient.getUsualWeightKg()) + " kg", null),
+                new MetricRow("Temperature (latest)", latestTemperatureText(patient), null),
                 new MetricRow("BMI", UiFormat.number(m.bmi()), m.bmi()),
                 new MetricRow("Ideal body weight", UiFormat.number(m.idealBodyWeightKg()) + " kg", null),
                 new MetricRow("Adjusted body weight", UiFormat.number(m.adjustedBodyWeightKg()) + " kg", null),

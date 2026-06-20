@@ -26,6 +26,7 @@ import t1tanic.nutritionicu.model.enums.NutritionCategory;
 import t1tanic.nutritionicu.model.enums.Sex;
 import t1tanic.nutritionicu.model.enums.StressFactor;
 import t1tanic.nutritionicu.repo.PatientRepository;
+import t1tanic.nutritionicu.repo.TemperatureMeasurementRepository;
 import t1tanic.nutritionicu.service.HarrisBenedictCalculator;
 import t1tanic.nutritionicu.service.NutritionFormulary;
 import t1tanic.nutritionicu.service.NutritionRegimenCalculator;
@@ -47,6 +48,7 @@ import t1tanic.nutritionicu.ui.common.UiFormat;
 public class EnergyExpenditureView extends VerticalLayout {
 
     private final transient PatientRepository patientRepository;
+    private final transient TemperatureMeasurementRepository temperatureRepository;
     private final transient HarrisBenedictCalculator calculator;
     private final transient NutritionRegimenCalculator regimenCalculator;
     private final transient NutritionFormulary formulary;
@@ -80,10 +82,12 @@ public class EnergyExpenditureView extends VerticalLayout {
     private double lastActualWeightKg;
 
     public EnergyExpenditureView(PatientRepository patientRepository,
+                                 TemperatureMeasurementRepository temperatureRepository,
                                  HarrisBenedictCalculator calculator,
                                  NutritionRegimenCalculator regimenCalculator,
                                  NutritionFormulary formulary) {
         this.patientRepository = patientRepository;
+        this.temperatureRepository = temperatureRepository;
         this.calculator = calculator;
         this.regimenCalculator = regimenCalculator;
         this.formulary = formulary;
@@ -216,12 +220,16 @@ public class EnergyExpenditureView extends VerticalLayout {
                 : patientRepository.findById(selectedPatient.getId()).orElse(null);
     }
 
-    private static List<MetricRow> patientRows(Patient p) {
+    private List<MetricRow> patientRows(Patient p) {
+        String temperature = temperatureRepository.findTopByPatientIdOrderByMeasuredOnDesc(p.getId())
+                .map(t -> UiFormat.number(t.getTemperatureCelsius()) + " °C · " + UiFormat.date(t.getMeasuredOn()))
+                .orElse(UiFormat.EMPTY);
         return List.of(
                 new MetricRow("Sex", sexText(p.getSex()), null),
                 new MetricRow("Age", UiFormat.ageYears(p), null),
                 new MetricRow("Height", UiFormat.number(p.getHeightCm()) + " cm", null),
-                new MetricRow("Weight (current)", UiFormat.number(p.getCurrentWeightKg()) + " kg", null));
+                new MetricRow("Weight (current)", UiFormat.number(p.getCurrentWeightKg()) + " kg", null),
+                new MetricRow("Temperature (latest)", temperature, null));
     }
 
     private static String sexText(Sex sex) {
