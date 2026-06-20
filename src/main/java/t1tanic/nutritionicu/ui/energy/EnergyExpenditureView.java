@@ -70,14 +70,10 @@ public class EnergyExpenditureView extends VerticalLayout {
 
     // Nutrition regimen (built once)
     private final Span regimenPrompt = new Span();
-    private final Span infusionBadge = new Span();
+    private final Grid<SummaryRow> summaryGrid = new Grid<>();
     private final Grid<MacroRow> macroGrid = new Grid<>();
     private final Grid<ElectrolyteRow> electrolyteGrid = new Grid<>();
     private final HorizontalLayout tables = new HorizontalLayout();
-    private final Span proteinTargetSpan = new Span();
-    private final Span deficitBadge = new Span();
-    private final Div deficitWrap = new Div(deficitBadge);
-    private final Span indicationsSpan = new Span();
 
     /** Last valid energy result and the actual weight behind it, for the nutrition step. */
     private EnergyExpenditureResult lastEnergy;
@@ -164,21 +160,20 @@ public class EnergyExpenditureView extends VerticalLayout {
                 new Div(sectionLabel("Electrolytes (24 h)"), electrolyteGrid));
         tables.getStyle().set("flex-wrap", "wrap").set("gap", "var(--lumo-space-l)");
 
-        infusionBadge.getElement().getThemeList().add("badge primary");
-        infusionBadge.addClassName(LumoUtility.FontSize.LARGE);
-        infusionBadge.getStyle().set("white-space", "normal");
-        proteinTargetSpan.getStyle().set("white-space", "normal");
-        deficitBadge.getElement().getThemeList().add("badge error");
-        deficitBadge.getStyle().set("white-space", "normal");
         regimenPrompt.addClassName(LumoUtility.TextColor.SECONDARY);
-        indicationsSpan.addClassNames(LumoUtility.TextColor.SECONDARY);
-        indicationsSpan.getStyle().set("white-space", "normal");
 
-        VerticalLayout regimen = new VerticalLayout(regimenPrompt, infusionBadge, tables,
-                proteinTargetSpan, deficitWrap, indicationsSpan);
+        summaryGrid.addColumn(SummaryRow::item).setHeader("Plan").setAutoWidth(true).setFlexGrow(0);
+        summaryGrid.addComponentColumn(SummaryRow::valueComponent).setHeader("Value")
+                .setAutoWidth(true).setFlexGrow(1);
+        summaryGrid.setAllRowsVisible(true);
+        summaryGrid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES, GridVariant.LUMO_COMPACT);
+        summaryGrid.setWidthFull();
+        summaryGrid.setMaxWidth("52em");
+
+        VerticalLayout regimen = new VerticalLayout(regimenPrompt, summaryGrid, tables);
         regimen.setPadding(false);
         regimen.setSpacing(false);
-        regimen.getStyle().set("gap", "var(--lumo-space-s)");
+        regimen.getStyle().set("gap", "var(--lumo-space-m)");
 
         HorizontalLayout selectors = new HorizontalLayout(categoryBox, productBox);
         selectors.setPadding(false);
@@ -295,38 +290,35 @@ public class EnergyExpenditureView extends VerticalLayout {
 
         NutritionRegimen plan = regimenCalculator.calculate(lastEnergy, lastActualWeightKg, product);
 
-        String osm = product.getOsmolarity() == null ? "" : ", " + product.getOsmolarity() + " mOsm/l";
-        infusionBadge.setText("Infusion: %d ml/h  (%d ml/day, %s kcal/ml%s)".formatted(
-                plan.infusionMlPerHour(), plan.dailyVolumeMl(),
-                UiFormat.number(product.getDensityKcalPerMl()), osm));
         macroGrid.setItems(macroRows(plan));
         electrolyteGrid.setItems(electrolyteRows(plan.electrolytes()));
+        summaryGrid.setItems(summaryRows(plan, product));
+    }
 
-        proteinTargetSpan.setText("Protein target: %s g/day  (%s g/kg of %s)".formatted(
-                UiFormat.number(plan.proteinTargetG()),
-                UiFormat.number(plan.proteinTargetPerKg()), plan.proteinBasis()));
-
-        boolean hasDeficit = plan.proteinDeficitG() > 0;
-        deficitWrap.setVisible(hasDeficit);
-        if (hasDeficit) {
-            deficitBadge.setText("Protein deficit vs target: %d g/day".formatted(plan.proteinDeficitG()));
+    private static List<SummaryRow> summaryRows(NutritionRegimen plan, NutritionProduct product) {
+        String osm = product.getOsmolarity() == null ? "" : ", " + product.getOsmolarity() + " mOsm/l";
+        List<SummaryRow> rows = new ArrayList<>(List.of(
+                new SummaryRow("Infusion", "%d ml/h (%d ml/day, %s kcal/ml%s)".formatted(
+                        plan.infusionMlPerHour(), plan.dailyVolumeMl(),
+                        UiFormat.number(product.getDensityKcalPerMl()), osm), false),
+                new SummaryRow("Protein target", "%s g/day (%s g/kg of %s)".formatted(
+                        UiFormat.number(plan.proteinTargetG()),
+                        UiFormat.number(plan.proteinTargetPerKg()), plan.proteinBasis()), false)));
+        if (plan.proteinDeficitG() > 0) {
+            rows.add(new SummaryRow("Protein deficit vs target",
+                    "%d g/day".formatted(plan.proteinDeficitG()), true));
         }
-
-        boolean hasIndications = product.getIndications() != null && !product.getIndications().isBlank();
-        indicationsSpan.setVisible(hasIndications);
-        if (hasIndications) {
-            indicationsSpan.setText("Indications: " + product.getIndications());
+        if (product.getIndications() != null && !product.getIndications().isBlank()) {
+            rows.add(new SummaryRow("Indications", product.getIndications(), false));
         }
+        return rows;
     }
 
     /** Shows the prompt OR the regimen content, never both. */
     private void setRegimenContentVisible(boolean visible) {
         regimenPrompt.setVisible(!visible);
-        infusionBadge.setVisible(visible);
+        summaryGrid.setVisible(visible);
         tables.setVisible(visible);
-        proteinTargetSpan.setVisible(visible);
-        deficitWrap.setVisible(visible);
-        indicationsSpan.setVisible(visible);
     }
 
     private static List<MetricRow> metricRows(EnergyExpenditureResult r) {
@@ -407,6 +399,19 @@ public class EnergyExpenditureView extends VerticalLayout {
 
         Span valueComponent() {
             return bmi == null ? new Span(value) : BmiBadge.of(bmi, value);
+        }
+    }
+
+    /** A regimen-summary row; {@code warn} renders the value in the error colour (e.g. protein deficit). */
+    private record SummaryRow(String item, String value, boolean warn) {
+
+        Span valueComponent() {
+            Span span = new Span(value);
+            span.getStyle().set("white-space", "normal");
+            if (warn) {
+                span.getStyle().set("color", "var(--lumo-error-text-color)").set("font-weight", "500");
+            }
+            return span;
         }
     }
 
