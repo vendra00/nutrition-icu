@@ -6,14 +6,13 @@ import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
-import com.vaadin.flow.component.grid.GridVariant;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.textfield.NumberField;
 import java.util.List;
 import t1tanic.nutritionicu.dto.NutritionMetrics;
 import t1tanic.nutritionicu.model.Patient;
 import t1tanic.nutritionicu.service.NutritionService;
-import t1tanic.nutritionicu.ui.common.BmiBadge;
+import t1tanic.nutritionicu.ui.common.MetricsTable;
 
 /**
  * Dialog for the doctor to record a patient's screening anthropometry: height and
@@ -25,7 +24,7 @@ public class PatientAnthropometryEditor extends Dialog {
 
     private final NumberField height = new NumberField("Height (cm)");
     private final NumberField usualWeight = new NumberField("Usual weight (kg)");
-    private final Grid<MetricRow> metricsGrid = new Grid<>();
+    private final Grid<MetricsTable.Row> metricsGrid = MetricsTable.create("Derived metric");
 
     public PatientAnthropometryEditor(Patient patient,
                                       NutritionService nutritionService,
@@ -44,10 +43,6 @@ public class PatientAnthropometryEditor extends Dialog {
         FormLayout form = new FormLayout(height, usualWeight);
         form.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1));
 
-        metricsGrid.addColumn(MetricRow::metric).setHeader("Derived metric").setAutoWidth(true).setFlexGrow(1);
-        metricsGrid.addComponentColumn(MetricRow::valueComponent).setHeader("Value").setAutoWidth(true);
-        metricsGrid.setAllRowsVisible(true);
-        metricsGrid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES, GridVariant.LUMO_COMPACT);
         metricsGrid.setWidthFull();
 
         add(form, metricsGrid);
@@ -73,23 +68,15 @@ public class PatientAnthropometryEditor extends Dialog {
 
         NutritionMetrics m = nutritionService.metricsFor(draft);
         metricsGrid.setItems(List.of(
-                new MetricRow("BMI", UiFormat.number(m.bmi()), m.bmi()),
-                new MetricRow("Ideal body weight", UiFormat.number(m.idealBodyWeightKg()) + " kg", null),
-                new MetricRow("Adjusted body weight", UiFormat.number(m.adjustedBodyWeightKg()) + " kg", null),
-                new MetricRow("Recent weight loss", UiFormat.number(m.weightLossPercent()) + " %", null)));
+                new MetricsTable.Row("BMI", UiFormat.number(m.bmi()), m.bmi()),
+                new MetricsTable.Row("Ideal body weight", UiFormat.number(m.idealBodyWeightKg()) + " kg"),
+                new MetricsTable.Row("Adjusted body weight", UiFormat.number(m.adjustedBodyWeightKg()) + " kg"),
+                new MetricsTable.Row("Recent weight loss", UiFormat.number(m.weightLossPercent()) + " %")));
     }
 
     private static void setValueIfPresent(NumberField field, Double value) {
         if (value != null) {
             field.setValue(value);
-        }
-    }
-
-    /** A derived-metric row; {@code bmi} is non-null only for the BMI row, which renders a coloured pill. */
-    private record MetricRow(String metric, String value, Double bmi) {
-
-        Span valueComponent() {
-            return bmi == null ? new Span(value) : BmiBadge.of(bmi, value);
         }
     }
 }

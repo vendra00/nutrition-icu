@@ -1,5 +1,5 @@
 package t1tanic.nutritionicu.ui.nutrition;
-import t1tanic.nutritionicu.ui.common.BmiBadge;
+import t1tanic.nutritionicu.ui.common.MetricsTable;
 import t1tanic.nutritionicu.ui.common.UiFormat;
 import t1tanic.nutritionicu.ui.common.TrendChart;
 import t1tanic.nutritionicu.ui.MainLayout;
@@ -10,7 +10,6 @@ import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.details.Details;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
-import com.vaadin.flow.component.grid.GridVariant;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.Span;
@@ -39,6 +38,13 @@ import t1tanic.nutritionicu.service.NutritionService;
 @Route(value = "nutrition", layout = MainLayout.class)
 @PageTitle("Nutrition · ICU Nutrition")
 public class NutritionView extends VerticalLayout {
+
+    /** Afebrile normal body-temperature band (°C), shown as the green zone on the temperature trend. */
+    private static final double NORMAL_TEMP_LOW_C = 36.5;
+    private static final double NORMAL_TEMP_HIGH_C = 37.5;
+    /** Healthy BMI bounds; the weight green zone is the weight range these imply for the patient's height. */
+    private static final double HEALTHY_BMI_LOW = 18.5;
+    private static final double HEALTHY_BMI_HIGH = 25.0;
 
     private final transient PatientRepository patientRepository;
     private final transient NutritionService nutritionService;
@@ -129,7 +135,17 @@ public class NutritionView extends VerticalLayout {
                         w.getMeasuredOn().atStartOfDay(ZoneId.systemDefault()).toInstant(),
                         w.getWeightKg()))
                 .toList();
-        return new TrendChart(points, null, null, "kg");
+
+        // Green zone = the weight range for a healthy BMI at this patient's height (when known).
+        Double low = null;
+        Double high = null;
+        Double heightCm = patient.getHeightCm();
+        if (heightCm != null && heightCm > 0) {
+            double mSquared = (heightCm / 100.0) * (heightCm / 100.0);
+            low = round(HEALTHY_BMI_LOW * mSquared);
+            high = round(HEALTHY_BMI_HIGH * mSquared);
+        }
+        return new TrendChart(points, low, high, "kg");
     }
 
     private TrendChart temperatureTrend(Patient patient) {
@@ -140,46 +156,43 @@ public class NutritionView extends VerticalLayout {
                         t.getMeasuredOn().atStartOfDay(ZoneId.systemDefault()).toInstant(),
                         t.getTemperatureCelsius()))
                 .toList();
-        return new TrendChart(points, null, null, "°C");
+        return new TrendChart(points, NORMAL_TEMP_LOW_C, NORMAL_TEMP_HIGH_C, "°C");
     }
 
-    /** The patient's most recent temperature as "{@code 38.5 °C · 12-06-2026}", or the empty placeholder. */
-    private String latestTemperatureText(Patient patient) {
+    /** Current-weight row: shows the value; the latest reading's date appears as a hover tooltip. */
+    private MetricsTable.Row currentWeightRow(Patient patient) {
+        String value = UiFormat.number(patient.getCurrentWeightKg()) + " kg";
+        return nutritionService.latestWeight(patient.getId())
+                .map(w -> new MetricsTable.Row("Current weight", value, null,
+                        "Recorded " + UiFormat.date(w.getMeasuredOn())))
+                .orElse(new MetricsTable.Row("Current weight", value));
+    }
+
+    /** Latest-temperature row: shows the value; the reading date appears as a hover tooltip. */
+    private MetricsTable.Row temperatureRow(Patient patient) {
         return nutritionService.latestTemperature(patient.getId())
-                .map(t -> UiFormat.number(t.getTemperatureCelsius()) + " °C · " + UiFormat.date(t.getMeasuredOn()))
-                .orElse(UiFormat.EMPTY);
+                .map(t -> new MetricsTable.Row("Temperature (latest)",
+                        UiFormat.number(t.getTemperatureCelsius()) + " °C", null,
+                        "Recorded " + UiFormat.date(t.getMeasuredOn())))
+                .orElse(new MetricsTable.Row("Temperature (latest)", UiFormat.EMPTY));
     }
 
     /** Patient anthropometry and derived metrics, as a compact Metric/Value table. */
-    private Grid<MetricRow> metricsTable(Patient patient, NutritionMetrics m) {
-        List<MetricRow> rows = List.of(
-                new MetricRow("Sex", String.valueOf(patient.getSex()), null),
-                new MetricRow("Age", UiFormat.ageYears(patient), null),
-                new MetricRow("Height", UiFormat.number(patient.getHeightCm()) + " cm", null),
-                new MetricRow("Current weight", UiFormat.number(patient.getCurrentWeightKg()) + " kg", null),
-                new MetricRow("Usual weight", UiFormat.number(patient.getUsualWeightKg()) + " kg", null),
-                new MetricRow("Temperature (latest)", latestTemperatureText(patient), null),
-                new MetricRow("BMI", UiFormat.number(m.bmi()), m.bmi()),
-                new MetricRow("Ideal body weight", UiFormat.number(m.idealBodyWeightKg()) + " kg", null),
-                new MetricRow("Adjusted body weight", UiFormat.number(m.adjustedBodyWeightKg()) + " kg", null),
-                new MetricRow("Recent weight loss", UiFormat.number(m.weightLossPercent()) + " %", null));
-
-        Grid<MetricRow> grid = new Grid<>();
-        grid.addColumn(MetricRow::metric).setHeader("Metric").setAutoWidth(true).setFlexGrow(0);
-        grid.addComponentColumn(MetricRow::valueComponent).setHeader("Value").setAutoWidth(true).setFlexGrow(1);
-        grid.setItems(rows);
-        grid.setAllRowsVisible(true);
-        grid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES, GridVariant.LUMO_COMPACT);
+    private Grid<MetricsTable.Row> metricsTable(Patient patient, NutritionMetrics m) {
+        Grid<MetricsTable.Row> grid = MetricsTable.create("Metric");
+        grid.setItems(
+                new MetricsTable.Row("Sex", String.valueOf(patient.getSex())),
+                new MetricsTable.Row("Age", UiFormat.ageYears(patient)),
+                new MetricsTable.Row("Height", UiFormat.number(patient.getHeightCm()) + " cm"),
+                currentWeightRow(patient),
+                new MetricsTable.Row("Usual weight", UiFormat.number(patient.getUsualWeightKg()) + " kg"),
+                temperatureRow(patient),
+                new MetricsTable.Row("BMI", UiFormat.number(m.bmi()), m.bmi()),
+                new MetricsTable.Row("Ideal body weight", UiFormat.number(m.idealBodyWeightKg()) + " kg"),
+                new MetricsTable.Row("Adjusted body weight", UiFormat.number(m.adjustedBodyWeightKg()) + " kg"),
+                new MetricsTable.Row("Recent weight loss", UiFormat.number(m.weightLossPercent()) + " %"));
         grid.setWidth("32em");
         return grid;
-    }
-
-    /** A metric row; {@code bmi} is non-null only for the BMI row, which renders a coloured pill. */
-    private record MetricRow(String metric, String value, Double bmi) {
-
-        Span valueComponent() {
-            return bmi == null ? new Span(value) : BmiBadge.of(bmi, value);
-        }
     }
 
     private VerticalLayout riskPanel(Patient patient) {
@@ -219,5 +232,9 @@ public class NutritionView extends VerticalLayout {
 
     private static String bandText(NutricBand band) {
         return band == null ? UiFormat.EMPTY : band.label();
+    }
+
+    private static double round(double value) {
+        return Math.round(value * 10.0) / 10.0;
     }
 }

@@ -27,11 +27,12 @@ import t1tanic.nutritionicu.model.enums.Sex;
 import t1tanic.nutritionicu.model.enums.StressFactor;
 import t1tanic.nutritionicu.repo.PatientRepository;
 import t1tanic.nutritionicu.repo.TemperatureMeasurementRepository;
+import t1tanic.nutritionicu.repo.WeightMeasurementRepository;
 import t1tanic.nutritionicu.service.HarrisBenedictCalculator;
 import t1tanic.nutritionicu.service.NutritionFormulary;
 import t1tanic.nutritionicu.service.NutritionRegimenCalculator;
 import t1tanic.nutritionicu.ui.MainLayout;
-import t1tanic.nutritionicu.ui.common.BmiBadge;
+import t1tanic.nutritionicu.ui.common.MetricsTable;
 import t1tanic.nutritionicu.ui.common.UiFormat;
 
 /**
@@ -49,6 +50,7 @@ public class EnergyExpenditureView extends VerticalLayout {
 
     private final transient PatientRepository patientRepository;
     private final transient TemperatureMeasurementRepository temperatureRepository;
+    private final transient WeightMeasurementRepository weightRepository;
     private final transient HarrisBenedictCalculator calculator;
     private final transient NutritionRegimenCalculator regimenCalculator;
     private final transient NutritionFormulary formulary;
@@ -56,7 +58,7 @@ public class EnergyExpenditureView extends VerticalLayout {
     private final ComboBox<Patient> patientBox = new ComboBox<>("Patient");
     private final ComboBox<StressFactor> stressBox = new ComboBox<>("Stress degree");
     private final Span patientPrompt = new Span("Select a patient to see their data.");
-    private final Grid<MetricRow> patientGrid = new Grid<>();
+    private final Grid<MetricsTable.Row> patientGrid = MetricsTable.create("Patient data");
     private final Details nutritionPanel = new Details();
     private final RadioButtonGroup<NutritionCategory> categoryBox = new RadioButtonGroup<>("Type");
     private final ComboBox<NutritionProduct> productBox = new ComboBox<>("Nutrition formula");
@@ -68,7 +70,7 @@ public class EnergyExpenditureView extends VerticalLayout {
     private final Span energyPrompt =
             new Span("Select a patient with sex, age, height and weight on file to calculate.");
     private final Span totalBadge = new Span();
-    private final Grid<MetricRow> energyGrid = new Grid<>();
+    private final Grid<MetricsTable.Row> energyGrid = MetricsTable.create("Metric");
 
     // Nutrition regimen (built once)
     private final Span regimenPrompt = new Span();
@@ -83,11 +85,13 @@ public class EnergyExpenditureView extends VerticalLayout {
 
     public EnergyExpenditureView(PatientRepository patientRepository,
                                  TemperatureMeasurementRepository temperatureRepository,
+                                 WeightMeasurementRepository weightRepository,
                                  HarrisBenedictCalculator calculator,
                                  NutritionRegimenCalculator regimenCalculator,
                                  NutritionFormulary formulary) {
         this.patientRepository = patientRepository;
         this.temperatureRepository = temperatureRepository;
+        this.weightRepository = weightRepository;
         this.calculator = calculator;
         this.regimenCalculator = regimenCalculator;
         this.formulary = formulary;
@@ -105,10 +109,6 @@ public class EnergyExpenditureView extends VerticalLayout {
         patientBox.setItemLabelGenerator(p -> p.getFullName() + " (" + p.getMedicalRecordNumber() + ")");
         patientBox.addValueChangeListener(e -> selectPatient(e.getValue()));
 
-        patientGrid.addColumn(MetricRow::metric).setHeader("Patient data").setAutoWidth(true).setFlexGrow(1);
-        patientGrid.addComponentColumn(MetricRow::valueComponent).setHeader("Value").setAutoWidth(true);
-        patientGrid.setAllRowsVisible(true);
-        patientGrid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES, GridVariant.LUMO_COMPACT);
         patientGrid.setWidth("34em");
         patientGrid.setVisible(false);
 
@@ -135,10 +135,6 @@ public class EnergyExpenditureView extends VerticalLayout {
         totalBadge.addClassName(LumoUtility.FontSize.LARGE);
         totalBadge.getStyle().set("white-space", "normal").set("margin-bottom", "var(--lumo-space-s)");
 
-        energyGrid.addColumn(MetricRow::metric).setHeader("Metric").setAutoWidth(true).setFlexGrow(1);
-        energyGrid.addComponentColumn(MetricRow::valueComponent).setHeader("Value").setAutoWidth(true);
-        energyGrid.setAllRowsVisible(true);
-        energyGrid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES, GridVariant.LUMO_COMPACT);
         energyGrid.setWidth("34em");
 
         Details panel = new Details("Energy expenditure (GET)", new Div(energyPrompt, totalBadge, energyGrid));
@@ -220,16 +216,23 @@ public class EnergyExpenditureView extends VerticalLayout {
                 : patientRepository.findById(selectedPatient.getId()).orElse(null);
     }
 
-    private List<MetricRow> patientRows(Patient p) {
-        String temperature = temperatureRepository.findTopByPatientIdOrderByMeasuredOnDesc(p.getId())
-                .map(t -> UiFormat.number(t.getTemperatureCelsius()) + " °C · " + UiFormat.date(t.getMeasuredOn()))
-                .orElse(UiFormat.EMPTY);
+    private List<MetricsTable.Row> patientRows(Patient p) {
+        String weightValue = UiFormat.number(p.getCurrentWeightKg()) + " kg";
+        MetricsTable.Row weight = weightRepository.findTopByPatientIdOrderByMeasuredOnDesc(p.getId())
+                .map(w -> new MetricsTable.Row("Weight (current)", weightValue, null,
+                        "Recorded " + UiFormat.date(w.getMeasuredOn())))
+                .orElse(new MetricsTable.Row("Weight (current)", weightValue));
+        MetricsTable.Row temperature = temperatureRepository.findTopByPatientIdOrderByMeasuredOnDesc(p.getId())
+                .map(t -> new MetricsTable.Row("Temperature (latest)",
+                        UiFormat.number(t.getTemperatureCelsius()) + " °C", null,
+                        "Recorded " + UiFormat.date(t.getMeasuredOn())))
+                .orElse(new MetricsTable.Row("Temperature (latest)", UiFormat.EMPTY));
         return List.of(
-                new MetricRow("Sex", sexText(p.getSex()), null),
-                new MetricRow("Age", UiFormat.ageYears(p), null),
-                new MetricRow("Height", UiFormat.number(p.getHeightCm()) + " cm", null),
-                new MetricRow("Weight (current)", UiFormat.number(p.getCurrentWeightKg()) + " kg", null),
-                new MetricRow("Temperature (latest)", temperature, null));
+                new MetricsTable.Row("Sex", sexText(p.getSex())),
+                new MetricsTable.Row("Age", UiFormat.ageYears(p)),
+                new MetricsTable.Row("Height", UiFormat.number(p.getHeightCm()) + " cm"),
+                weight,
+                temperature);
     }
 
     private static String sexText(Sex sex) {
@@ -329,15 +332,15 @@ public class EnergyExpenditureView extends VerticalLayout {
         tables.setVisible(visible);
     }
 
-    private static List<MetricRow> metricRows(EnergyExpenditureResult r) {
+    private static List<MetricsTable.Row> metricRows(EnergyExpenditureResult r) {
         return List.of(
-                new MetricRow("GEB (basal)", r.basalKcalPerDay() + " kcal/day", null),
-                new MetricRow("Per kg (actual weight)",
-                        UiFormat.number(r.kcalPerKgPerDay()) + " kcal/kg/day", null),
-                new MetricRow("BMI", UiFormat.number(r.bmi()), r.bmi()),
-                new MetricRow("Weight class", weightBasis(r), null),
-                new MetricRow("Ideal body weight", UiFormat.number(r.idealBodyWeightKg()) + " kg", null),
-                new MetricRow("Weight used in equation", UiFormat.number(r.weightUsedKg()) + " kg", null));
+                new MetricsTable.Row("GEB (basal)", r.basalKcalPerDay() + " kcal/day"),
+                new MetricsTable.Row("Per kg (actual weight)",
+                        UiFormat.number(r.kcalPerKgPerDay()) + " kcal/kg/day"),
+                new MetricsTable.Row("BMI", UiFormat.number(r.bmi()), r.bmi()),
+                new MetricsTable.Row("Weight class", weightBasis(r)),
+                new MetricsTable.Row("Ideal body weight", UiFormat.number(r.idealBodyWeightKg()) + " kg"),
+                new MetricsTable.Row("Weight used in equation", UiFormat.number(r.weightUsedKg()) + " kg"));
     }
 
     private static List<MacroRow> macroRows(NutritionRegimen plan) {
@@ -403,13 +406,6 @@ public class EnergyExpenditureView extends VerticalLayout {
     }
 
     /** A metric row; {@code bmi} is non-null only for the BMI row, which renders a coloured pill. */
-    private record MetricRow(String metric, String value, Double bmi) {
-
-        Span valueComponent() {
-            return bmi == null ? new Span(value) : BmiBadge.of(bmi, value);
-        }
-    }
-
     /** A regimen-summary row; {@code warn} renders the value in the error colour (e.g. protein deficit). */
     private record SummaryRow(String item, String value, boolean warn) {
 

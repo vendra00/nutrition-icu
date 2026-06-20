@@ -34,6 +34,9 @@ public interface NutritionService {
     /** A patient's weight history, oldest first. */
     List<WeightMeasurement> weightHistory(Long patientId);
 
+    /** The patient's most recent weight reading, if any (the source of the current weight). */
+    Optional<WeightMeasurement> latestWeight(Long patientId);
+
     /** Records (or updates) the patient's body temperature for a date. Tracking only; no calculation. */
     TemperatureMeasurement recordTemperature(Long patientId, LocalDate date, Double temperatureCelsius);
 

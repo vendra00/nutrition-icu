@@ -97,6 +97,12 @@ public class NutritionServiceImpl implements NutritionService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public Optional<WeightMeasurement> latestWeight(Long patientId) {
+        return weightRepository.findTopByPatientIdOrderByMeasuredOnDesc(patientId);
+    }
+
+    @Override
     @Transactional
     public TemperatureMeasurement recordTemperature(Long patientId, LocalDate date, Double temperatureCelsius) {
         Patient patient = patient(patientId);
