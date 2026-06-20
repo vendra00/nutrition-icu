@@ -13,7 +13,7 @@ import t1tanic.nutritionicu.ui.alerts.AlertsView;
 import t1tanic.nutritionicu.ui.analytics.AnalyticsView;
 import t1tanic.nutritionicu.ui.dashboard.DashboardView;
 import t1tanic.nutritionicu.ui.doctors.DoctorsView;
-import t1tanic.nutritionicu.ui.energy.EnergyExpenditureView;
+import t1tanic.nutritionicu.ui.energy.EnergyView;
 import t1tanic.nutritionicu.ui.insights.InsightsView;
 import t1tanic.nutritionicu.ui.nutrition.NutritionView;
 import t1tanic.nutritionicu.ui.patients.PatientsView;
@@ -46,7 +46,7 @@ public class MainLayout extends AppLayout {
         nav.addItem(new SideNavItem("Alerts", AlertsView.class, VaadinIcon.BELL.create()));
         nav.addItem(new SideNavItem("Patients", PatientsView.class, VaadinIcon.USERS.create()));
         nav.addItem(new SideNavItem("Nutrition", NutritionView.class, VaadinIcon.CUTLERY.create()));
-        nav.addItem(new SideNavItem("Energy (HB)", EnergyExpenditureView.class, VaadinIcon.FIRE.create()));
+        nav.addItem(new SideNavItem("Energy", EnergyView.class, VaadinIcon.FIRE.create()));
         nav.addItem(new SideNavItem("Doctors", DoctorsView.class, VaadinIcon.DOCTOR.create()));
         nav.addItem(new SideNavItem("Analytics", AnalyticsView.class, VaadinIcon.CHART.create()));
         nav.addItem(new SideNavItem("Insights", InsightsView.class, VaadinIcon.LIGHTBULB.create()));
