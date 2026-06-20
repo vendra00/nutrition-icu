@@ -22,4 +22,12 @@ public interface LabResultRepository extends JpaRepository<LabResult, Long> {
     @Query("select distinct r.analyteName from LabResult r "
             + "where r.patient.id = :patientId order by r.analyteName")
     List<String> findDistinctAnalyteNames(@Param("patientId") Long patientId);
+
+    /**
+     * Distinct (analyte label, raw unit) pairs for a patient, so the picker can group analytes by
+     * unit. A label may appear with a null unit and a real one across reports; the caller keeps the
+     * first non-null.
+     */
+    @Query("select distinct r.analyteName, r.unitRaw from LabResult r where r.patient.id = :patientId")
+    List<Object[]> findAnalyteNameUnits(@Param("patientId") Long patientId);
 }
