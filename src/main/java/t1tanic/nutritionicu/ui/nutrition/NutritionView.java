@@ -26,9 +26,9 @@ import t1tanic.nutritionicu.model.Patient;
 import t1tanic.nutritionicu.model.TemperatureMeasurement;
 import t1tanic.nutritionicu.model.WeightMeasurement;
 import t1tanic.nutritionicu.model.enums.NutricBand;
-import t1tanic.nutritionicu.repo.LabResultRepository;
-import t1tanic.nutritionicu.repo.PatientRepository;
+import t1tanic.nutritionicu.service.LabResultService;
 import t1tanic.nutritionicu.service.NutritionService;
+import t1tanic.nutritionicu.service.PatientService;
 
 /**
  * Nutrition-protocol screen: pick a patient to see screening anthropometry, the
@@ -46,21 +46,21 @@ public class NutritionView extends VerticalLayout {
     private static final double HEALTHY_BMI_LOW = 18.5;
     private static final double HEALTHY_BMI_HIGH = 25.0;
 
-    private final transient PatientRepository patientRepository;
+    private final transient PatientService patientService;
     private final transient NutritionService nutritionService;
-    private final transient LabResultRepository labResultRepository;
+    private final transient LabResultService labResultService;
     private final ComboBox<Patient> patientBox = new ComboBox<>("Patient");
     private final VerticalLayout details = new VerticalLayout();
 
-    public NutritionView(PatientRepository patientRepository, NutritionService nutritionService,
-                         LabResultRepository labResultRepository) {
-        this.patientRepository = patientRepository;
+    public NutritionView(PatientService patientService, NutritionService nutritionService,
+                         LabResultService labResultService) {
+        this.patientService = patientService;
         this.nutritionService = nutritionService;
-        this.labResultRepository = labResultRepository;
+        this.labResultService = labResultService;
         setWidthFull();
         setPadding(true);
 
-        patientBox.setItems(patientRepository.findAll());
+        patientBox.setItems(patientService.findAll());
         patientBox.setItemLabelGenerator(p -> p.getFullName() + " (" + p.getMedicalRecordNumber() + ")");
         patientBox.addValueChangeListener(e -> render(e.getValue()));
 
@@ -108,7 +108,7 @@ public class NutritionView extends VerticalLayout {
                 metricsTable(patient, m), new HorizontalLayout(bodyData, weights, temperature)));
         details.add(panel("Nutritional risk (NUTRIC)", riskPanel(patient)));
         details.add(panel("Metabolic monitoring (lab)",
-                new MetabolicMonitorPanel(patient, labResultRepository)));
+                new MetabolicMonitorPanel(patient, labResultService)));
         details.add(panel("Weight trend", weightTrend(patient)));
         details.add(panel("Temperature trend", temperatureTrend(patient)));
     }
@@ -227,7 +227,7 @@ public class NutritionView extends VerticalLayout {
 
     /** Re-fetches the patient (after an edit) and re-renders. */
     private void reload(Long patientId) {
-        patientRepository.findById(patientId).ifPresent(this::render);
+        patientService.findById(patientId).ifPresent(this::render);
     }
 
     private static String bandText(NutricBand band) {

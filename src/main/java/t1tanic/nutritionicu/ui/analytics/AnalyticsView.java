@@ -18,7 +18,6 @@ import java.math.BigDecimal;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -27,16 +26,16 @@ import java.util.Objects;
 import java.util.Set;
 import t1tanic.nutritionicu.model.LabResult;
 import t1tanic.nutritionicu.model.Patient;
-import t1tanic.nutritionicu.repo.LabResultRepository;
-import t1tanic.nutritionicu.repo.PatientRepository;
 import t1tanic.nutritionicu.service.AnalyteCatalog;
+import t1tanic.nutritionicu.service.LabResultService;
+import t1tanic.nutritionicu.service.PatientService;
 
 /** Pick a patient and an analyte to see its value-over-time trend and the underlying readings. */
 @Route(value = "analytics", layout = MainLayout.class)
 @PageTitle("Analytics · ICU Nutrition")
 public class AnalyticsView extends VerticalLayout {
 
-    private final transient LabResultRepository resultRepository;
+    private final transient LabResultService labResultService;
     private final transient AnalyteCatalog analyteCatalog;
 
     private final ComboBox<Patient> patientBox = new ComboBox<>("Patient");
@@ -74,16 +73,16 @@ public class AnalyticsView extends VerticalLayout {
         }
     }
 
-    public AnalyticsView(PatientRepository patientRepository,
-                         LabResultRepository resultRepository,
+    public AnalyticsView(PatientService patientService,
+                         LabResultService labResultService,
                          AnalyteCatalog analyteCatalog) {
-        this.resultRepository = resultRepository;
+        this.labResultService = labResultService;
         this.analyteCatalog = analyteCatalog;
         setWidthFull();
         setPadding(true);
         add(new H2("Analytics"));
 
-        patientBox.setItems(patientRepository.findAll());
+        patientBox.setItems(patientService.findAll());
         patientBox.setItemLabelGenerator(p -> p.getFullName() + " (" + p.getMedicalRecordNumber() + ")");
         patientBox.setWidth("18em");
         patientBox.addValueChangeListener(e -> onPatientSelected(e.getValue()));
@@ -174,14 +173,9 @@ public class AnalyticsView extends VerticalLayout {
 
     /** Collapses raw labels into one option per canonical code (synonyms merged), carrying each unit. */
     private List<AnalyteOption> buildOptions(Long patientId) {
-        Map<String, String> unitByName = new HashMap<>();
-        for (Object[] row : resultRepository.findAnalyteNameUnits(patientId)) {
-            unitByName.compute((String) row[0], (name, current) -> current != null ? current : (String) row[1]);
-        }
-
         Map<String, AnalyteOption> byCode = new LinkedHashMap<>();
         List<AnalyteOption> options = new ArrayList<>();
-        for (Map.Entry<String, String> entry : unitByName.entrySet()) {
+        for (Map.Entry<String, String> entry : labResultService.analyteUnits(patientId).entrySet()) {
             String raw = entry.getKey();
             String unit = entry.getValue();
             String code = analyteCatalog.codeFor(raw);
@@ -238,8 +232,8 @@ public class AnalyticsView extends VerticalLayout {
 
     private List<LabResult> readingsFor(Patient patient, AnalyteOption analyte) {
         return analyte.byCode()
-                ? resultRepository.findByPatientIdAndAnalyteCodeOrderByObservedAtAsc(patient.getId(), analyte.code())
-                : resultRepository.findByPatientIdAndAnalyteNameOrderByObservedAtAsc(patient.getId(), analyte.rawName());
+                ? labResultService.seriesByCode(patient.getId(), analyte.code())
+                : labResultService.seriesByName(patient.getId(), analyte.rawName());
     }
 
     private static List<TrendChart.Point> pointsOf(List<LabResult> readings) {

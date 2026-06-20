@@ -16,7 +16,6 @@ import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import java.time.LocalDate;
 import t1tanic.nutritionicu.model.Patient;
-import t1tanic.nutritionicu.repo.PatientRepository;
 import t1tanic.nutritionicu.service.NutritionService;
 import t1tanic.nutritionicu.service.PatientService;
 
@@ -25,15 +24,12 @@ import t1tanic.nutritionicu.service.PatientService;
 @PageTitle("Patients · ICU Nutrition")
 public class PatientsView extends VerticalLayout {
 
-    private final transient PatientRepository patientRepository;
     private final transient NutritionService nutritionService;
     private final transient PatientService patientService;
     private final Grid<Patient> grid = new Grid<>(Patient.class, false);
 
-    public PatientsView(PatientRepository patientRepository,
-                        NutritionService nutritionService,
+    public PatientsView(NutritionService nutritionService,
                         PatientService patientService) {
-        this.patientRepository = patientRepository;
         this.nutritionService = nutritionService;
         this.patientService = patientService;
         setSizeFull();
@@ -61,7 +57,7 @@ public class PatientsView extends VerticalLayout {
                 .setHeader("BMI").setAutoWidth(true);
         grid.addComponentColumn(this::actions).setHeader("").setAutoWidth(true);
 
-        grid.setItems(patientRepository.findAll());
+        grid.setItems(patientService.findAll());
         grid.setSizeFull();
         addAndExpand(grid);
     }
@@ -76,7 +72,7 @@ public class PatientsView extends VerticalLayout {
     }
 
     private void refresh() {
-        grid.setItems(patientRepository.findAll());
+        grid.setItems(patientService.findAll());
     }
 
     private static String dateText(LocalDate date) {

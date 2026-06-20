@@ -11,9 +11,9 @@ import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.theme.lumo.LumoUtility;
 import t1tanic.nutritionicu.dto.AlertSummary;
-import t1tanic.nutritionicu.repo.DoctorRepository;
-import t1tanic.nutritionicu.repo.PatientRepository;
 import t1tanic.nutritionicu.service.AlertService;
+import t1tanic.nutritionicu.service.DoctorService;
+import t1tanic.nutritionicu.service.PatientService;
 
 /** Landing overview: headline counts and the most recent alerts. */
 @Route(value = "", layout = MainLayout.class)
@@ -21,16 +21,16 @@ import t1tanic.nutritionicu.service.AlertService;
 public class DashboardView extends VerticalLayout {
 
     public DashboardView(AlertService alertService,
-                         PatientRepository patientRepository,
-                         DoctorRepository doctorRepository) {
+                         PatientService patientService,
+                         DoctorService doctorService) {
         setPadding(true);
         setSpacing(true);
 
         var alerts = alertService.recentAlerts();
         HorizontalLayout cards = new HorizontalLayout(
-                statCard("Monitored patients", patientRepository.findByMonitoredTrue().size()),
+                statCard("Monitored patients", patientService.findMonitored().size()),
                 statCard("Active alerts", alerts.size()),
-                statCard("Doctors", (int) doctorRepository.count()));
+                statCard("Doctors", (int) doctorService.count()));
         cards.setWidthFull();
         add(cards);
 

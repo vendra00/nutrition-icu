@@ -25,12 +25,11 @@ import t1tanic.nutritionicu.model.Patient;
 import t1tanic.nutritionicu.model.enums.NutritionCategory;
 import t1tanic.nutritionicu.model.enums.Sex;
 import t1tanic.nutritionicu.model.enums.StressFactor;
-import t1tanic.nutritionicu.repo.PatientRepository;
-import t1tanic.nutritionicu.repo.TemperatureMeasurementRepository;
-import t1tanic.nutritionicu.repo.WeightMeasurementRepository;
 import t1tanic.nutritionicu.service.HarrisBenedictCalculator;
 import t1tanic.nutritionicu.service.NutritionFormulary;
 import t1tanic.nutritionicu.service.NutritionRegimenCalculator;
+import t1tanic.nutritionicu.service.NutritionService;
+import t1tanic.nutritionicu.service.PatientService;
 import t1tanic.nutritionicu.ui.MainLayout;
 import t1tanic.nutritionicu.ui.common.MetricsTable;
 import t1tanic.nutritionicu.ui.common.UiFormat;
@@ -48,9 +47,8 @@ import t1tanic.nutritionicu.ui.common.UiFormat;
 @PageTitle("Energy expenditure · ICU Nutrition")
 public class EnergyExpenditureView extends VerticalLayout {
 
-    private final transient PatientRepository patientRepository;
-    private final transient TemperatureMeasurementRepository temperatureRepository;
-    private final transient WeightMeasurementRepository weightRepository;
+    private final transient PatientService patientService;
+    private final transient NutritionService nutritionService;
     private final transient HarrisBenedictCalculator calculator;
     private final transient NutritionRegimenCalculator regimenCalculator;
     private final transient NutritionFormulary formulary;
@@ -83,15 +81,13 @@ public class EnergyExpenditureView extends VerticalLayout {
     private EnergyExpenditureResult lastEnergy;
     private double lastActualWeightKg;
 
-    public EnergyExpenditureView(PatientRepository patientRepository,
-                                 TemperatureMeasurementRepository temperatureRepository,
-                                 WeightMeasurementRepository weightRepository,
+    public EnergyExpenditureView(PatientService patientService,
+                                 NutritionService nutritionService,
                                  HarrisBenedictCalculator calculator,
                                  NutritionRegimenCalculator regimenCalculator,
                                  NutritionFormulary formulary) {
-        this.patientRepository = patientRepository;
-        this.temperatureRepository = temperatureRepository;
-        this.weightRepository = weightRepository;
+        this.patientService = patientService;
+        this.nutritionService = nutritionService;
         this.calculator = calculator;
         this.regimenCalculator = regimenCalculator;
         this.formulary = formulary;
@@ -105,7 +101,7 @@ public class EnergyExpenditureView extends VerticalLayout {
 
     // --- Panel 1: patient & inputs ---
     private Details inputsPanel() {
-        patientBox.setItems(patientRepository.findAll());
+        patientBox.setItems(patientService.findAll());
         patientBox.setItemLabelGenerator(p -> p.getFullName() + " (" + p.getMedicalRecordNumber() + ")");
         patientBox.addValueChangeListener(e -> selectPatient(e.getValue()));
 
@@ -213,16 +209,16 @@ public class EnergyExpenditureView extends VerticalLayout {
     private Patient currentPatient() {
         return selectedPatient == null
                 ? null
-                : patientRepository.findById(selectedPatient.getId()).orElse(null);
+                : patientService.findById(selectedPatient.getId()).orElse(null);
     }
 
     private List<MetricsTable.Row> patientRows(Patient p) {
         String weightValue = UiFormat.number(p.getCurrentWeightKg()) + " kg";
-        MetricsTable.Row weight = weightRepository.findTopByPatientIdOrderByMeasuredOnDesc(p.getId())
+        MetricsTable.Row weight = nutritionService.latestWeight(p.getId())
                 .map(w -> new MetricsTable.Row("Weight (current)", weightValue, null,
                         "Recorded " + UiFormat.date(w.getMeasuredOn())))
                 .orElse(new MetricsTable.Row("Weight (current)", weightValue));
-        MetricsTable.Row temperature = temperatureRepository.findTopByPatientIdOrderByMeasuredOnDesc(p.getId())
+        MetricsTable.Row temperature = nutritionService.latestTemperature(p.getId())
                 .map(t -> new MetricsTable.Row("Temperature (latest)",
                         UiFormat.number(t.getTemperatureCelsius()) + " °C", null,
                         "Recorded " + UiFormat.date(t.getMeasuredOn())))

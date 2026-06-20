@@ -10,7 +10,7 @@ import java.time.ZoneId;
 import java.util.List;
 import t1tanic.nutritionicu.model.LabResult;
 import t1tanic.nutritionicu.model.Patient;
-import t1tanic.nutritionicu.repo.LabResultRepository;
+import t1tanic.nutritionicu.service.LabResultService;
 import t1tanic.nutritionicu.ui.nutrition.MetabolicInterpreter.Interpretation;
 
 /**
@@ -38,22 +38,22 @@ class MetabolicMonitorPanel extends Composite<VerticalLayout> {
             new Marker("PREALBUMIN", "Prealbumin", Concern.LOW),
             new Marker("ALBUMIN", "Albumin", Concern.LOW));
 
-    MetabolicMonitorPanel(Patient patient, LabResultRepository resultRepository) {
+    MetabolicMonitorPanel(Patient patient, LabResultService labResultService) {
         VerticalLayout root = getContent();
         root.setPadding(false);
         root.setSpacing(false);
 
         MetabolicInterpreter interpreter = new MetabolicInterpreter();
-        LabTrend crp = load(resultRepository, patient.getId(), MARKERS.get(0));
-        LabTrend pct = load(resultRepository, patient.getId(), MARKERS.get(1));
-        LabTrend prealbumin = load(resultRepository, patient.getId(), MARKERS.get(2));
+        LabTrend crp = load(labResultService, patient.getId(), MARKERS.get(0));
+        LabTrend pct = load(labResultService, patient.getId(), MARKERS.get(1));
+        LabTrend prealbumin = load(labResultService, patient.getId(), MARKERS.get(2));
 
         root.add(badge(interpreter.phase(crp, pct)));
         root.add(badge(interpreter.recovery(crp, prealbumin)));
 
         boolean any = false;
         for (Marker marker : MARKERS) {
-            LabTrend trend = load(resultRepository, patient.getId(), marker);
+            LabTrend trend = load(labResultService, patient.getId(), marker);
             if (trend.hasData()) {
                 root.add(markerBlock(marker, trend));
                 any = true;
@@ -105,9 +105,8 @@ class MetabolicMonitorPanel extends Composite<VerticalLayout> {
         };
     }
 
-    private LabTrend load(LabResultRepository repo, Long patientId, Marker marker) {
-        List<LabResult> readings = repo
-                .findByPatientIdAndAnalyteCodeOrderByObservedAtAsc(patientId, marker.code()).stream()
+    private LabTrend load(LabResultService labResultService, Long patientId, Marker marker) {
+        List<LabResult> readings = labResultService.seriesByCode(patientId, marker.code()).stream()
                 .filter(r -> r.getValueNumeric() != null && r.getObservedAt() != null)
                 .toList();
         return new LabTrend(readings);

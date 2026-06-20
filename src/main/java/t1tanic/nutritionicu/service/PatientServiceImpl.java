@@ -1,6 +1,8 @@
 package t1tanic.nutritionicu.service;
 
 import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import t1tanic.nutritionicu.dto.PatientDetails;
@@ -15,6 +17,24 @@ public class PatientServiceImpl implements PatientService {
 
     public PatientServiceImpl(PatientRepository patientRepository) {
         this.patientRepository = patientRepository;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Patient> findAll() {
+        return patientRepository.findAll();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<Patient> findById(Long patientId) {
+        return patientRepository.findById(patientId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Patient> findMonitored() {
+        return patientRepository.findByMonitoredTrue();
     }
 
     @Override
