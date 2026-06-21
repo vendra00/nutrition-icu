@@ -7,8 +7,11 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import t1tanic.nutritionicu.dto.AlertFilter;
 import t1tanic.nutritionicu.dto.AlertSummary;
 import t1tanic.nutritionicu.model.Alert;
 import t1tanic.nutritionicu.model.Doctor;
@@ -104,16 +107,34 @@ public class AlertServiceImpl implements AlertService {
     @Transactional(readOnly = true)
     public List<AlertSummary> recentAlerts() {
         return alertRepository.findAllByOrderByCreatedAtDescIdDesc().stream()
-                .map(alert -> new AlertSummary(
-                        alert.getId(),
-                        alert.getSeverity().name(),
-                        alert.getStatus().name(),
-                        alert.getPatient().getMedicalRecordNumber(),
-                        alert.getTargetSectors().stream().map(Enum::name).sorted()
-                                .collect(Collectors.joining(", ")),
-                        alert.getMessage(),
-                        alert.getCreatedAt()))
+                .map(this::toSummary)
                 .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<AlertSummary> search(AlertFilter filter, int offset, int limit) {
+        int size = Math.max(limit, 1);
+        Pageable pageable = PageRequest.of(offset / size, size);
+        return alertRepository.search(filter.severity(), filter.patientMrn(), filter.text(), pageable)
+                .stream().map(this::toSummary).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long count(AlertFilter filter) {
+        return alertRepository.countSearch(filter.severity(), filter.patientMrn(), filter.text());
+    }
+
+    private AlertSummary toSummary(Alert alert) {
+        return new AlertSummary(
+                alert.getId(),
+                alert.getSeverity().name(),
+                alert.getStatus().name(),
+                alert.getPatient().getMedicalRecordNumber(),
+                alert.getTargetSectors().stream().map(Enum::name).sorted().collect(Collectors.joining(", ")),
+                alert.getMessage(),
+                alert.getCreatedAt());
     }
 
     @Override

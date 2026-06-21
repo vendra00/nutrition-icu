@@ -4,19 +4,27 @@ import t1tanic.nutritionicu.ui.common.Donut;
 import t1tanic.nutritionicu.ui.MainLayout;
 
 import com.vaadin.flow.component.Component;
+import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.grid.Grid;
+import com.vaadin.flow.component.grid.HeaderRow;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.textfield.TextField;
+import com.vaadin.flow.data.provider.CallbackDataProvider;
+import com.vaadin.flow.data.provider.DataProvider;
+import com.vaadin.flow.data.value.ValueChangeMode;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.theme.lumo.LumoUtility;
 import jakarta.annotation.security.PermitAll;
 import java.util.List;
+import t1tanic.nutritionicu.dto.AlertFilter;
 import t1tanic.nutritionicu.dto.AlertSummary;
 import t1tanic.nutritionicu.dto.DashboardStats;
+import t1tanic.nutritionicu.model.enums.AlertSeverity;
 import t1tanic.nutritionicu.service.alert.AlertService;
 import t1tanic.nutritionicu.service.dashboard.DashboardService;
 
@@ -32,7 +40,11 @@ public class DashboardView extends VerticalLayout {
     private static final String AMBER = "#8A6D00";
     private static final String GREY = "#9E9E9E";
 
+    private final transient AlertService alertService;
+    private AlertFilter alertFilter = AlertFilter.empty();
+
     public DashboardView(DashboardService dashboardService, AlertService alertService) {
+        this.alertService = alertService;
         setWidthFull();
         setPadding(true);
         setSpacing(true);
@@ -64,7 +76,7 @@ public class DashboardView extends VerticalLayout {
                         new Donut.Slice("Warning", s.warningAlerts(), ORANGE)),
                         String.valueOf(s.activeAlerts())))));
 
-        add(recentAlertsCard(alertService.recentAlerts()));
+        add(recentAlertsCard());
     }
 
     private static Div row(Component... cards) {
@@ -99,14 +111,45 @@ public class DashboardView extends VerticalLayout {
         return card;
     }
 
-    private Component recentAlertsCard(List<AlertSummary> alerts) {
+    private Component recentAlertsCard() {
         Grid<AlertSummary> grid = new Grid<>(AlertSummary.class, false);
-        grid.addComponentColumn(DashboardView::severityBadge).setHeader("Severity").setAutoWidth(true);
-        grid.addColumn(AlertSummary::patientMrn).setHeader("Patient (NHC)").setAutoWidth(true);
+        Grid.Column<AlertSummary> severityCol = grid.addComponentColumn(DashboardView::severityBadge)
+                .setHeader("Severity").setAutoWidth(true);
+        Grid.Column<AlertSummary> patientCol = grid.addColumn(AlertSummary::patientMrn)
+                .setHeader("Patient (NHC)").setAutoWidth(true);
         grid.addColumn(AlertSummary::sectors).setHeader("Sectors").setAutoWidth(true);
-        grid.addColumn(AlertSummary::message).setHeader("Details").setFlexGrow(3);
-        grid.setItems(alerts);
-        grid.setAllRowsVisible(true);
+        Grid.Column<AlertSummary> detailsCol = grid.addColumn(AlertSummary::message)
+                .setHeader("Details").setFlexGrow(3);
+        grid.setHeight("420px");
+
+        // Lazy loading: the grid fetches pages from the backend as it scrolls, not all at once.
+        CallbackDataProvider<AlertSummary, Void> dataProvider = DataProvider.fromCallbacks(
+                query -> alertService.search(alertFilter, query.getOffset(), query.getLimit()).stream(),
+                query -> (int) alertService.count(alertFilter));
+        grid.setItems(dataProvider);
+
+        // Header filter row: severity / patient / details. Changing any re-queries the backend.
+        HeaderRow filterRow = grid.appendHeaderRow();
+        ComboBox<AlertSeverity> severity = new ComboBox<>();
+        severity.setItems(AlertSeverity.values());
+        severity.setItemLabelGenerator(AlertSeverity::name);
+        severity.setPlaceholder("All");
+        severity.setClearButtonVisible(true);
+        severity.setWidthFull();
+        TextField patient = filterField("NHC…");
+        TextField details = filterField("Search…");
+
+        Runnable apply = () -> {
+            alertFilter = new AlertFilter(severity.getValue(),
+                    blankToNull(patient.getValue()), blankToNull(details.getValue()));
+            dataProvider.refreshAll();
+        };
+        severity.addValueChangeListener(e -> apply.run());
+        patient.addValueChangeListener(e -> apply.run());
+        details.addValueChangeListener(e -> apply.run());
+        filterRow.getCell(severityCol).setComponent(severity);
+        filterRow.getCell(patientCol).setComponent(patient);
+        filterRow.getCell(detailsCol).setComponent(details);
 
         H3 heading = new H3("Recent alerts");
         heading.addClassNames(LumoUtility.FontSize.MEDIUM, LumoUtility.Margin.NONE);
@@ -115,6 +158,19 @@ public class DashboardView extends VerticalLayout {
         card.setWidthFull();
         decorate(card);
         return card;
+    }
+
+    private static TextField filterField(String placeholder) {
+        TextField field = new TextField();
+        field.setPlaceholder(placeholder);
+        field.setClearButtonVisible(true);
+        field.setValueChangeMode(ValueChangeMode.LAZY);
+        field.setWidthFull();
+        return field;
+    }
+
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.strip();
     }
 
     private static Span severityBadge(AlertSummary alert) {

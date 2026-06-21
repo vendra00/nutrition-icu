@@ -2,6 +2,7 @@ package t1tanic.nutritionicu.service.alert;
 
 import java.util.List;
 import java.util.Optional;
+import t1tanic.nutritionicu.dto.AlertFilter;
 import t1tanic.nutritionicu.dto.AlertSummary;
 import t1tanic.nutritionicu.model.Alert;
 import t1tanic.nutritionicu.model.LabReport;
@@ -24,6 +25,12 @@ public interface AlertService {
      */
     int evaluateForMonitoredPatients();
 
-    /** Recent alerts as flat summaries, newest first — for the dashboard. */
+    /** Recent alerts as flat summaries, newest first — for the dashboard's metric counts. */
     List<AlertSummary> recentAlerts();
+
+    /** A filtered, paged slice of alerts (newest first) for the lazy-loaded dashboard grid. */
+    List<AlertSummary> search(AlertFilter filter, int offset, int limit);
+
+    /** How many alerts match the filter. */
+    long count(AlertFilter filter);
 }
