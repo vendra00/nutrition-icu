@@ -23,11 +23,13 @@ public interface AlertRepository extends JpaRepository<Alert, Long> {
     @Query("""
             select a from Alert a
             where (:severity is null or a.severity = :severity)
+              and (:status is null or a.status = :status)
               and (:mrn is null or lower(a.patient.medicalRecordNumber) like lower(concat('%', cast(:mrn as string), '%')))
               and (:text is null or lower(a.message) like lower(concat('%', cast(:text as string), '%')))
             order by a.createdAt desc, a.id desc
             """)
     Page<Alert> search(@Param("severity") AlertSeverity severity,
+                       @Param("status") AlertStatus status,
                        @Param("mrn") String mrn,
                        @Param("text") String text,
                        Pageable pageable);
@@ -35,10 +37,12 @@ public interface AlertRepository extends JpaRepository<Alert, Long> {
     @Query("""
             select count(a) from Alert a
             where (:severity is null or a.severity = :severity)
+              and (:status is null or a.status = :status)
               and (:mrn is null or lower(a.patient.medicalRecordNumber) like lower(concat('%', cast(:mrn as string), '%')))
               and (:text is null or lower(a.message) like lower(concat('%', cast(:text as string), '%')))
             """)
     long countSearch(@Param("severity") AlertSeverity severity,
+                     @Param("status") AlertStatus status,
                      @Param("mrn") String mrn,
                      @Param("text") String text);
 }

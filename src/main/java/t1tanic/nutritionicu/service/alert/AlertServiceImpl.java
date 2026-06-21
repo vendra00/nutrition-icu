@@ -116,14 +116,14 @@ public class AlertServiceImpl implements AlertService {
     public List<AlertSummary> search(AlertFilter filter, int offset, int limit) {
         int size = Math.max(limit, 1);
         Pageable pageable = PageRequest.of(offset / size, size);
-        return alertRepository.search(filter.severity(), filter.patientMrn(), filter.text(), pageable)
+        return alertRepository.search(filter.severity(), filter.status(), filter.patientMrn(), filter.text(), pageable)
                 .stream().map(this::toSummary).toList();
     }
 
     @Override
     @Transactional(readOnly = true)
     public long count(AlertFilter filter) {
-        return alertRepository.countSearch(filter.severity(), filter.patientMrn(), filter.text());
+        return alertRepository.countSearch(filter.severity(), filter.status(), filter.patientMrn(), filter.text());
     }
 
     private AlertSummary toSummary(Alert alert) {

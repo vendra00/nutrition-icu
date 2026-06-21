@@ -140,7 +140,7 @@ public class DashboardView extends VerticalLayout {
         TextField details = filterField("Search…");
 
         Runnable apply = () -> {
-            alertFilter = new AlertFilter(severity.getValue(),
+            alertFilter = new AlertFilter(severity.getValue(), null,
                     blankToNull(patient.getValue()), blankToNull(details.getValue()));
             dataProvider.refreshAll();
         };
