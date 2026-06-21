@@ -14,6 +14,7 @@ import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
+import jakarta.annotation.security.PermitAll;
 import java.time.LocalDate;
 import t1tanic.nutritionicu.model.Patient;
 import t1tanic.nutritionicu.service.nutrition.NutritionService;
@@ -23,6 +24,7 @@ import t1tanic.nutritionicu.service.patient.PatientService;
 /** All patients, with anthropometry and a per-row editor for the doctor. */
 @Route(value = "patients", layout = MainLayout.class)
 @PageTitle("Patients · ICU Nutrition")
+@PermitAll
 public class PatientsView extends VerticalLayout {
 
     private final transient NutritionService nutritionService;

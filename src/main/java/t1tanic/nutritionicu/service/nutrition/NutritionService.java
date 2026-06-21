@@ -3,6 +3,7 @@ package t1tanic.nutritionicu.service.nutrition;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.security.access.prepost.PreAuthorize;
 import t1tanic.nutritionicu.dto.NutricScore;
 import t1tanic.nutritionicu.dto.NutritionMetrics;
 import t1tanic.nutritionicu.model.NutritionRiskAssessment;
@@ -28,7 +29,8 @@ public interface NutritionService {
     /** Records (or updates) the patient's weight for a date; keeps current weight on the latest. */
     WeightMeasurement recordWeight(Long patientId, LocalDate date, Double weightKg);
 
-    /** Removes a weight entry and re-syncs the patient's current weight. */
+    /** Removes a weight entry and re-syncs the patient's current weight. Admin only. */
+    @PreAuthorize("hasRole('ADMIN')")
     void deleteWeight(Long weightMeasurementId);
 
     /** A patient's weight history, oldest first. */
@@ -40,7 +42,8 @@ public interface NutritionService {
     /** Records (or updates) the patient's body temperature for a date. Tracking only; no calculation. */
     TemperatureMeasurement recordTemperature(Long patientId, LocalDate date, Double temperatureCelsius);
 
-    /** Removes a temperature entry. */
+    /** Removes a temperature entry. Admin only. */
+    @PreAuthorize("hasRole('ADMIN')")
     void deleteTemperature(Long temperatureMeasurementId);
 
     /** A patient's temperature history, oldest first. */

@@ -14,6 +14,7 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.radiobutton.RadioButtonGroup;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
+import jakarta.annotation.security.PermitAll;
 import java.math.BigDecimal;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -33,6 +34,7 @@ import t1tanic.nutritionicu.service.patient.PatientService;
 /** Pick a patient and an analyte to see its value-over-time trend and the underlying readings. */
 @Route(value = "analytics", layout = MainLayout.class)
 @PageTitle("Analytics · ICU Nutrition")
+@PermitAll
 public class AnalyticsView extends VerticalLayout {
 
     private final transient LabResultService labResultService;

@@ -16,6 +16,7 @@ import java.time.ZoneId;
 import java.util.List;
 import t1tanic.nutritionicu.model.Patient;
 import t1tanic.nutritionicu.model.WeightMeasurement;
+import t1tanic.nutritionicu.security.SecurityUtils;
 import t1tanic.nutritionicu.service.nutrition.NutritionService;
 
 /**
@@ -50,10 +51,12 @@ public class WeightHistoryDialog extends Dialog {
 
         grid.addColumn(m -> UiFormat.date(m.getMeasuredOn())).setHeader("Date").setAutoWidth(true);
         grid.addColumn(WeightMeasurement::getWeightKg).setHeader("Weight (kg)").setAutoWidth(true);
-        grid.addComponentColumn(m -> new Button("Delete", e -> {
-            nutritionService.deleteWeight(m.getId());
-            refresh();
-        })).setHeader("").setAutoWidth(true);
+        if (SecurityUtils.isAdmin()) {
+            grid.addComponentColumn(m -> new Button("Delete", e -> {
+                nutritionService.deleteWeight(m.getId());
+                refresh();
+            })).setHeader("").setAutoWidth(true);
+        }
         grid.setAllRowsVisible(true);
 
         add(form, chartHolder, grid);

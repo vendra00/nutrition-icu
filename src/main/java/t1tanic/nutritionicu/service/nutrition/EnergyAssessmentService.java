@@ -3,6 +3,7 @@ package t1tanic.nutritionicu.service.nutrition;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.security.access.prepost.PreAuthorize;
 import t1tanic.nutritionicu.dto.EnergyExpenditureResult;
 import t1tanic.nutritionicu.model.EnergyAssessment;
 import t1tanic.nutritionicu.model.enums.EnergyMethod;
@@ -21,7 +22,8 @@ public interface EnergyAssessmentService {
     /** Saves (or updates) an indirect-calorimetry study for a date; derives weight/BMI/kcal-per-kg. */
     EnergyAssessment recordCalorimetry(Long patientId, LocalDate date, int measuredKcalPerDay, Double rq);
 
-    /** Removes an assessment. */
+    /** Removes an assessment. Admin only. */
+    @PreAuthorize("hasRole('ADMIN')")
     void delete(Long assessmentId);
 
     /** A patient's assessments across both methods, oldest first. */

@@ -6,12 +6,14 @@ import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
+import jakarta.annotation.security.PermitAll;
 import t1tanic.nutritionicu.dto.AlertSummary;
 import t1tanic.nutritionicu.service.alert.AlertService;
 
 /** All alerts raised for monitored patients, newest first. */
 @Route(value = "alerts", layout = MainLayout.class)
 @PageTitle("Alerts · ICU Nutrition")
+@PermitAll
 public class AlertsView extends VerticalLayout {
 
     public AlertsView(AlertService alertService) {

@@ -7,6 +7,7 @@ import com.vaadin.flow.component.tabs.Tab;
 import com.vaadin.flow.component.tabs.Tabs;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
+import jakarta.annotation.security.PermitAll;
 import t1tanic.nutritionicu.service.nutrition.EnergyAssessmentService;
 import t1tanic.nutritionicu.service.nutrition.HarrisBenedictCalculator;
 import t1tanic.nutritionicu.service.nutrition.NutritionFormulary;
@@ -21,6 +22,7 @@ import t1tanic.nutritionicu.service.patient.PatientService;
  */
 @Route(value = "energy", layout = MainLayout.class)
 @PageTitle("Energy · ICU Nutrition")
+@PermitAll
 public class EnergyView extends VerticalLayout {
 
     public EnergyView(PatientService patientService,

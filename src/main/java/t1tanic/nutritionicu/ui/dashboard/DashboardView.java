@@ -9,6 +9,7 @@ import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
+import jakarta.annotation.security.PermitAll;
 import com.vaadin.flow.theme.lumo.LumoUtility;
 import t1tanic.nutritionicu.dto.AlertSummary;
 import t1tanic.nutritionicu.service.alert.AlertService;
@@ -18,6 +19,7 @@ import t1tanic.nutritionicu.service.patient.PatientService;
 /** Landing overview: headline counts and the most recent alerts. */
 @Route(value = "", layout = MainLayout.class)
 @PageTitle("Dashboard · ICU Nutrition")
+@PermitAll
 public class DashboardView extends VerticalLayout {
 
     public DashboardView(AlertService alertService,

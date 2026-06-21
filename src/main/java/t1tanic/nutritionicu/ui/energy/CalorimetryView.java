@@ -26,6 +26,7 @@ import t1tanic.nutritionicu.model.EnergyAssessment;
 import t1tanic.nutritionicu.model.Patient;
 import t1tanic.nutritionicu.model.enums.EnergyMethod;
 import t1tanic.nutritionicu.model.enums.Sex;
+import t1tanic.nutritionicu.security.SecurityUtils;
 import t1tanic.nutritionicu.service.nutrition.EnergyAssessmentService;
 import t1tanic.nutritionicu.service.nutrition.NutritionFormulary;
 import t1tanic.nutritionicu.service.nutrition.NutritionRegimenCalculator;
@@ -114,10 +115,12 @@ public class CalorimetryView extends VerticalLayout {
         historyGrid.addColumn(m -> m.getTotalKcalPerDay() + " kcal/day")
                 .setHeader("Measured EE").setAutoWidth(true);
         historyGrid.addComponentColumn(m -> rqBadge(m.getRq())).setHeader("RQ").setAutoWidth(true);
-        historyGrid.addComponentColumn(m -> new Button("Delete", e -> {
-            energyService.delete(m.getId());
-            refresh();
-        })).setHeader("").setAutoWidth(true);
+        if (SecurityUtils.isAdmin()) {
+            historyGrid.addComponentColumn(m -> new Button("Delete", e -> {
+                energyService.delete(m.getId());
+                refresh();
+            })).setHeader("").setAutoWidth(true);
+        }
         historyGrid.setAllRowsVisible(true);
 
         chartHolder.setWidthFull();

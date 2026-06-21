@@ -17,6 +17,7 @@ import java.time.ZoneId;
 import java.util.List;
 import t1tanic.nutritionicu.model.NutritionDelivery;
 import t1tanic.nutritionicu.model.Patient;
+import t1tanic.nutritionicu.security.SecurityUtils;
 import t1tanic.nutritionicu.service.nutrition.NutritionDeliveryService;
 
 /**
@@ -64,10 +65,12 @@ public class NutritionDeliveryDialog extends Dialog {
                 .setHeader("Actual").setAutoWidth(true);
         grid.addColumn(NutritionDeliveryDialog::deliveredKcal).setHeader("Delivered").setAutoWidth(true);
         grid.addComponentColumn(d -> pctPill(d.percentDelivered())).setHeader("% delivered").setAutoWidth(true);
-        grid.addComponentColumn(d -> new Button("Delete", e -> {
-            deliveryService.delete(d.getId());
-            refresh();
-        })).setHeader("").setAutoWidth(true);
+        if (SecurityUtils.isAdmin()) {
+            grid.addComponentColumn(d -> new Button("Delete", e -> {
+                deliveryService.delete(d.getId());
+                refresh();
+            })).setHeader("").setAutoWidth(true);
+        }
         grid.setAllRowsVisible(true);
 
         add(form, chartHolder, grid);

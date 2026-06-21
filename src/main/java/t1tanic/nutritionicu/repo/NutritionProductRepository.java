@@ -1,6 +1,7 @@
 package t1tanic.nutritionicu.repo;
 
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import t1tanic.nutritionicu.model.NutritionProduct;
 
@@ -10,4 +11,6 @@ public interface NutritionProductRepository extends JpaRepository<NutritionProdu
     List<NutritionProduct> findAllByOrderByCategoryAscNameAsc();
 
     boolean existsByCode(String code);
+
+    Optional<NutritionProduct> findByCode(String code);
 }

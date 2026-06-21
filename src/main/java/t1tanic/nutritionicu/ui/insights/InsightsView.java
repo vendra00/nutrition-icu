@@ -6,10 +6,12 @@ import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
+import jakarta.annotation.security.PermitAll;
 
 /** Placeholder for progression insights (rate-of-change detection, likely scenarios). */
 @Route(value = "insights", layout = MainLayout.class)
 @PageTitle("Insights · ICU Nutrition")
+@PermitAll
 public class InsightsView extends VerticalLayout {
 
     public InsightsView() {

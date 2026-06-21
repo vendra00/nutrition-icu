@@ -16,6 +16,7 @@ import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
+import jakarta.annotation.security.PermitAll;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
@@ -38,6 +39,7 @@ import t1tanic.nutritionicu.service.patient.PatientService;
  */
 @Route(value = "nutrition", layout = MainLayout.class)
 @PageTitle("Nutrition · ICU Nutrition")
+@PermitAll
 public class NutritionView extends VerticalLayout {
 
     /** Afebrile normal body-temperature band (°C), shown as the green zone on the temperature trend. */

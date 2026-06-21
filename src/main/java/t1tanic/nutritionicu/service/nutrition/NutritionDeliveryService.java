@@ -3,6 +3,7 @@ package t1tanic.nutritionicu.service.nutrition;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.security.access.prepost.PreAuthorize;
 import t1tanic.nutritionicu.model.NutritionDelivery;
 
 /** Tracks what a patient actually received vs. what was prescribed for their feed (delivery adequacy). */
@@ -12,7 +13,8 @@ public interface NutritionDeliveryService {
     NutritionDelivery record(Long patientId, LocalDate date,
                              Double prescribedMlPerHour, Double actualMlPerHour, Double kcalPerMl);
 
-    /** Removes a delivery record. */
+    /** Removes a delivery record. Admin only. */
+    @PreAuthorize("hasRole('ADMIN')")
     void delete(Long deliveryId);
 
     /** A patient's delivery history, oldest first. */
