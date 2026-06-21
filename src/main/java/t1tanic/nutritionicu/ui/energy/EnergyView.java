@@ -37,19 +37,23 @@ public class EnergyView extends VerticalLayout {
                 patientService, nutritionService, calculator, energyService, regimenCalculator, formulary);
         CalorimetryView calorimetry = new CalorimetryView(
                 patientService, nutritionService, energyService, regimenCalculator, formulary);
+        EnergyComparisonView comparison = new EnergyComparisonView(patientService, energyService);
 
         Tab hbTab = new Tab("Harris-Benedict");
         Tab calorimetryTab = new Tab("Calorimetry");
-        Tabs tabs = new Tabs(hbTab, calorimetryTab);
+        Tab comparisonTab = new Tab("Comparison");
+        Tabs tabs = new Tabs(hbTab, calorimetryTab, comparisonTab);
         tabs.setWidthFull();
 
         calorimetry.setVisible(false);
+        comparison.setVisible(false);
         tabs.addSelectedChangeListener(e -> {
-            boolean hbSelected = e.getSelectedTab() == hbTab;
-            harrisBenedict.setVisible(hbSelected);
-            calorimetry.setVisible(!hbSelected);
+            Tab selected = e.getSelectedTab();
+            harrisBenedict.setVisible(selected == hbTab);
+            calorimetry.setVisible(selected == calorimetryTab);
+            comparison.setVisible(selected == comparisonTab);
         });
 
-        add(tabs, harrisBenedict, calorimetry);
+        add(tabs, harrisBenedict, calorimetry, comparison);
     }
 }

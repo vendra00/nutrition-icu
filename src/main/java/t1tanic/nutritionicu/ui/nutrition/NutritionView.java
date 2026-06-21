@@ -8,7 +8,6 @@ import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.details.Details;
-import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H2;
@@ -21,12 +20,14 @@ import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 import t1tanic.nutritionicu.dto.NutritionMetrics;
+import t1tanic.nutritionicu.model.NutritionDelivery;
 import t1tanic.nutritionicu.model.NutritionRiskAssessment;
 import t1tanic.nutritionicu.model.Patient;
 import t1tanic.nutritionicu.model.TemperatureMeasurement;
 import t1tanic.nutritionicu.model.WeightMeasurement;
 import t1tanic.nutritionicu.model.enums.NutricBand;
 import t1tanic.nutritionicu.service.lab.LabResultService;
+import t1tanic.nutritionicu.service.nutrition.NutritionDeliveryService;
 import t1tanic.nutritionicu.service.nutrition.NutritionService;
 import t1tanic.nutritionicu.service.patient.PatientService;
 
@@ -49,14 +50,16 @@ public class NutritionView extends VerticalLayout {
     private final transient PatientService patientService;
     private final transient NutritionService nutritionService;
     private final transient LabResultService labResultService;
+    private final transient NutritionDeliveryService deliveryService;
     private final ComboBox<Patient> patientBox = new ComboBox<>("Patient");
     private final VerticalLayout details = new VerticalLayout();
 
     public NutritionView(PatientService patientService, NutritionService nutritionService,
-                         LabResultService labResultService) {
+                         LabResultService labResultService, NutritionDeliveryService deliveryService) {
         this.patientService = patientService;
         this.nutritionService = nutritionService;
         this.labResultService = labResultService;
+        this.deliveryService = deliveryService;
         setWidthFull();
         setPadding(true);
 
@@ -103,14 +106,24 @@ public class NutritionView extends VerticalLayout {
         });
         Button temperature = new Button("Manage temperature", e ->
                 new TemperatureHistoryDialog(patient, nutritionService).open());
+        Button delivery = new Button("Manage delivery", e -> {
+            NutritionDeliveryDialog dialog = new NutritionDeliveryDialog(patient, deliveryService);
+            dialog.addOpenedChangeListener(ev -> {
+                if (!ev.isOpened()) {
+                    reload(patient.getId());
+                }
+            });
+            dialog.open();
+        });
 
-        details.add(panel("Anthropometry & metrics",
-                metricsTable(patient, m), new HorizontalLayout(bodyData, weights, temperature)));
+        details.add(panel("Anthropometry & metrics", metricsTable(patient, m),
+                new HorizontalLayout(bodyData, weights, temperature, delivery)));
         details.add(panel("Nutritional risk (NUTRIC)", riskPanel(patient)));
         details.add(panel("Metabolic monitoring (lab)",
                 new MetabolicMonitorPanel(patient, labResultService)));
         details.add(panel("Weight trend", weightTrend(patient)));
         details.add(panel("Temperature trend", temperatureTrend(patient)));
+        details.add(panel("Nutrition delivery (% of prescribed)", deliveryTrend(patient)));
     }
 
     /** Wraps a section's content in an open collapsible panel, matching the Energy tab's accordions. */
@@ -159,6 +172,32 @@ public class NutritionView extends VerticalLayout {
         return new TrendChart(points, NORMAL_TEMP_LOW_C, NORMAL_TEMP_HIGH_C, "°C");
     }
 
+    private TrendChart deliveryTrend(Patient patient) {
+        List<NutritionDelivery> history = deliveryService.history(patient.getId());
+        List<TrendChart.Point> points = history.stream()
+                .filter(d -> d.percentDelivered() != null)
+                .map(d -> new TrendChart.Point(
+                        d.getMeasuredOn().atStartOfDay(ZoneId.systemDefault()).toInstant(),
+                        d.percentDelivered()))
+                .toList();
+        // Green zone = 80–100% of prescribed (adequate delivery).
+        return new TrendChart(points, 80.0, 100.0, "% delivered");
+    }
+
+    /** Latest-delivery row: shows % of prescribed actually delivered, with the rates/date on hover. */
+    private MetricsTable.Row deliveryRow(Patient patient) {
+        return deliveryService.latest(patient.getId())
+                .map(d -> {
+                    Double pct = d.percentDelivered();
+                    String value = pct == null ? UiFormat.EMPTY : Math.round(pct) + "% delivered";
+                    String tooltip = "%s / %s ml/h · %s".formatted(
+                            UiFormat.number(d.getActualMlPerHour()),
+                            UiFormat.number(d.getPrescribedMlPerHour()), UiFormat.date(d.getMeasuredOn()));
+                    return new MetricsTable.Row("Delivery (latest)", value, null, tooltip);
+                })
+                .orElse(new MetricsTable.Row("Delivery (latest)", UiFormat.EMPTY));
+    }
+
     /** Current-weight row: shows the value; the latest reading's date appears as a hover tooltip. */
     private MetricsTable.Row currentWeightRow(Patient patient) {
         String value = UiFormat.number(patient.getCurrentWeightKg()) + " kg";
@@ -187,6 +226,7 @@ public class NutritionView extends VerticalLayout {
                 currentWeightRow(patient),
                 new MetricsTable.Row("Usual weight", UiFormat.number(patient.getUsualWeightKg()) + " kg"),
                 temperatureRow(patient),
+                deliveryRow(patient),
                 new MetricsTable.Row("BMI", UiFormat.number(m.bmi()), m.bmi()),
                 new MetricsTable.Row("Ideal body weight", UiFormat.number(m.idealBodyWeightKg()) + " kg"),
                 new MetricsTable.Row("Adjusted body weight", UiFormat.number(m.adjustedBodyWeightKg()) + " kg"),
@@ -199,22 +239,24 @@ public class NutritionView extends VerticalLayout {
         VerticalLayout panel = new VerticalLayout();
         panel.setPadding(false);
         panel.setSpacing(false);
+        panel.getStyle().set("gap", "var(--lumo-space-s)");
 
         Optional<NutritionRiskAssessment> latest = nutritionService.latestRiskAssessment(patient.getId());
         if (latest.isPresent()) {
             NutritionRiskAssessment a = latest.get();
-            FormLayout form = new FormLayout();
-            form.addFormItem(new Span(a.getNutricScore() + " / " + a.getNutricMax()), "NUTRIC score");
-            Span risk = new Span(a.isHighRisk() ? "High risk" : "Low risk");
-            risk.getElement().getThemeList().add(a.isHighRisk() ? "badge error" : "badge success");
-            form.addFormItem(risk, "Risk");
-            form.addFormItem(new Span(bandText(a.getApacheBand())), "APACHE II");
-            form.addFormItem(new Span(bandText(a.getSofaBand())), "SOFA");
-            form.addFormItem(new Span(bandText(a.getComorbidityBand())), "Comorbidities");
-            form.addFormItem(new Span(bandText(a.getAdmissionDelayBand())), "Days → ICU");
-            form.addFormItem(new Span(bandText(a.getIl6Band())), "IL-6");
-            form.addFormItem(new Span(UiFormat.date(a.getAssessedOn())), "Assessed");
-            panel.add(form);
+            Grid<MetricsTable.Row> grid = MetricsTable.create("NUTRIC");
+            grid.setItems(
+                    new MetricsTable.Row("NUTRIC score", a.getNutricScore() + " / " + a.getNutricMax()),
+                    MetricsTable.Row.badge("Risk", a.isHighRisk() ? "High risk" : "Low risk",
+                            a.isHighRisk() ? "error" : "success"),
+                    new MetricsTable.Row("APACHE II", bandText(a.getApacheBand())),
+                    new MetricsTable.Row("SOFA", bandText(a.getSofaBand())),
+                    new MetricsTable.Row("Comorbidities", bandText(a.getComorbidityBand())),
+                    new MetricsTable.Row("Days → ICU", bandText(a.getAdmissionDelayBand())),
+                    new MetricsTable.Row("IL-6", bandText(a.getIl6Band())),
+                    new MetricsTable.Row("Assessed", UiFormat.date(a.getAssessedOn())));
+            grid.setWidth("32em");
+            panel.add(grid);
         } else {
             panel.add(new Span("No risk assessment yet."));
         }

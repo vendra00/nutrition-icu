@@ -15,21 +15,34 @@ public final class MetricsTable {
     }
 
     /**
-     * One row: a label, its display value, an optional BMI (non-null → coloured pill), and an optional
-     * {@code tooltip} shown on hover over the value (e.g. the date behind a "latest" reading).
+     * One row: a label, its display value, an optional BMI (non-null → coloured pill), an optional
+     * {@code tooltip} shown on hover over the value, and an optional Lumo {@code badgeTheme} that renders
+     * the value as a coloured badge (e.g. {@code "error"}, {@code "success"}).
      */
-    public record Row(String metric, String value, Double bmi, String tooltip) {
+    public record Row(String metric, String value, Double bmi, String tooltip, String badgeTheme) {
 
         public Row(String metric, String value) {
-            this(metric, value, null, null);
+            this(metric, value, null, null, null);
         }
 
         public Row(String metric, String value, Double bmi) {
-            this(metric, value, bmi, null);
+            this(metric, value, bmi, null, null);
+        }
+
+        public Row(String metric, String value, Double bmi, String tooltip) {
+            this(metric, value, bmi, tooltip, null);
+        }
+
+        /** A row whose value renders as a Lumo badge (e.g. {@code "error"}, {@code "success"}). */
+        public static Row badge(String metric, String value, String lumoBadgeTheme) {
+            return new Row(metric, value, null, null, lumoBadgeTheme);
         }
 
         Span valueComponent() {
             Span span = bmi == null ? new Span(value) : BmiBadge.of(bmi, value);
+            if (badgeTheme != null) {
+                span.getElement().getThemeList().add("badge " + badgeTheme);
+            }
             if (tooltip != null && !tooltip.isBlank()) {
                 span.getElement().setAttribute("title", tooltip);
                 span.getStyle().set("cursor", "help");

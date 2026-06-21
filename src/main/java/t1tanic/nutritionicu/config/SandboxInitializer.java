@@ -9,12 +9,17 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import t1tanic.nutritionicu.dto.EnergyExpenditureResult;
+import t1tanic.nutritionicu.dto.NutritionMetrics;
+import t1tanic.nutritionicu.dto.NutritionRegimen;
 import t1tanic.nutritionicu.model.Doctor;
+import t1tanic.nutritionicu.model.NutritionProduct;
 import t1tanic.nutritionicu.model.Patient;
 import t1tanic.nutritionicu.model.enums.AdmissionDelayBand;
 import t1tanic.nutritionicu.model.enums.ApacheBand;
 import t1tanic.nutritionicu.model.enums.ComorbidityBand;
+import t1tanic.nutritionicu.model.enums.EnergyMethod;
 import t1tanic.nutritionicu.model.enums.Il6Band;
+import t1tanic.nutritionicu.model.enums.NutritionCategory;
 import t1tanic.nutritionicu.model.enums.Sector;
 import t1tanic.nutritionicu.model.enums.Sex;
 import t1tanic.nutritionicu.model.enums.SofaBand;
@@ -24,6 +29,9 @@ import t1tanic.nutritionicu.repo.PatientRepository;
 import t1tanic.nutritionicu.service.alert.AlertService;
 import t1tanic.nutritionicu.service.nutrition.EnergyAssessmentService;
 import t1tanic.nutritionicu.service.nutrition.HarrisBenedictCalculator;
+import t1tanic.nutritionicu.service.nutrition.NutritionDeliveryService;
+import t1tanic.nutritionicu.service.nutrition.NutritionFormulary;
+import t1tanic.nutritionicu.service.nutrition.NutritionRegimenCalculator;
 import t1tanic.nutritionicu.service.nutrition.NutritionService;
 
 /**
@@ -43,19 +51,28 @@ public class SandboxInitializer implements ApplicationRunner {
     private final NutritionService nutritionService;
     private final EnergyAssessmentService energyService;
     private final HarrisBenedictCalculator calculator;
+    private final NutritionDeliveryService deliveryService;
+    private final NutritionFormulary formulary;
+    private final NutritionRegimenCalculator regimenCalculator;
 
     public SandboxInitializer(PatientRepository patientRepository,
                               DoctorRepository doctorRepository,
                               AlertService alertService,
                               NutritionService nutritionService,
                               EnergyAssessmentService energyService,
-                              HarrisBenedictCalculator calculator) {
+                              HarrisBenedictCalculator calculator,
+                              NutritionDeliveryService deliveryService,
+                              NutritionFormulary formulary,
+                              NutritionRegimenCalculator regimenCalculator) {
         this.patientRepository = patientRepository;
         this.doctorRepository = doctorRepository;
         this.alertService = alertService;
         this.nutritionService = nutritionService;
         this.energyService = energyService;
         this.calculator = calculator;
+        this.deliveryService = deliveryService;
+        this.formulary = formulary;
+        this.regimenCalculator = regimenCalculator;
     }
 
     @Override
@@ -66,6 +83,7 @@ public class SandboxInitializer implements ApplicationRunner {
         seedTemperatures();
         seedRiskAssessments();
         seedEnergyAssessments();
+        seedDeliveries();
         int alerts = alertService.evaluateForMonitoredPatients();
         log.info("Sandbox: raised {} alert(s) from monitored patients' reports", alerts);
     }
@@ -212,6 +230,63 @@ public class SandboxInitializer implements ApplicationRunner {
             seeded++;
         }
         log.info("Sandbox: seeded energy assessments (HB + calorimetry) for {} patient(s)", seeded);
+    }
+
+    /**
+     * Gives each patient a few days of nutrition-delivery records. The prescribed infusion rate + caloric
+     * density come from running the real regimen calculation for a chosen enteral formula against the
+     * patient's energy target — so the demo is coherent with the Energy tab. The actually delivered rate
+     * runs below prescribed (68–90%), the common under-delivery the doctors want to track. Idempotent:
+     * skips patients that already have a delivery record.
+     */
+    private void seedDeliveries() {
+        double[] fractions = {0.75, 0.82, 0.68, 0.90, 0.85};   // actual as a fraction of prescribed
+        List<NutritionProduct> enteral = formulary.all().stream()
+                .filter(p -> p.getCategory() == NutritionCategory.ENTERAL)
+                .toList();
+        if (enteral.isEmpty()) {
+            return;
+        }
+        List<Patient> patients = patientRepository.findByMonitoredTrue();
+        int seeded = 0;
+        for (Patient patient : patients) {
+            if (patient.getId() == null || deliveryService.latest(patient.getId()).isPresent()) {
+                continue;
+            }
+            NutritionRegimen plan = prescribedPlan(patient, enteral);
+            if (plan == null) {
+                continue;
+            }
+            long n = patient.getId();
+            double prescribed = plan.infusionMlPerHour();
+            Double density = plan.product().getDensityKcalPerMl();
+            LocalDate start = LocalDate.now().minusDays(fractions.length - 1 + (int) (n % 2));
+            for (int i = 0; i < fractions.length; i++) {
+                double actual = Math.round(prescribed * fractions[i] * 10.0) / 10.0;
+                deliveryService.record(patient.getId(), start.plusDays(i), prescribed, actual, density);
+            }
+            seeded++;
+        }
+        log.info("Sandbox: seeded nutrition-delivery records for {} patient(s)", seeded);
+    }
+
+    /** The administration plan for a chosen enteral formula at the patient's energy target, or null. */
+    private NutritionRegimen prescribedPlan(Patient patient, List<NutritionProduct> enteral) {
+        var energy = energyService.latest(patient.getId(), EnergyMethod.INDIRECT_CALORIMETRY)
+                .or(() -> energyService.latest(patient.getId(), EnergyMethod.HARRIS_BENEDICT));
+        NutritionMetrics m = nutritionService.metricsFor(patient);
+        Double weight = patient.getCurrentWeightKg();
+        boolean ready = energy.isPresent() && m.bmi() != null && weight != null && weight > 0
+                && (m.bmi() < 30 || m.idealBodyWeightKg() != null);
+        if (!ready) {
+            return null;
+        }
+        NutritionProduct product = enteral.get((int) (patient.getId() % enteral.size()));
+        int kcal = energy.get().getTotalKcalPerDay();
+        EnergyExpenditureResult result = new EnergyExpenditureResult(m.bmi(), null,
+                m.idealBodyWeightKg() != null ? m.idealBodyWeightKg() : 0.0,
+                weight, 0, kcal, kcal / weight, null);
+        return regimenCalculator.calculate(result, weight, product);
     }
 
     /** The HB result for a patient, or null when sex/age/height/weight are incomplete. */
