@@ -94,6 +94,7 @@ public class SandboxInitializer implements ApplicationRunner {
         }
         List<Doctor> doctors = List.of(
                 new Doctor("Dr. Anna Vidal", Sector.ICU),
+                new Doctor("Dr. Laura Bosch", Sector.NUTRITION),
                 new Doctor("Dr. Carlos Lázaro", Sector.NEUROLOGY),
                 new Doctor("Dr. Marta Soler", Sector.CARDIOLOGY),
                 new Doctor("Dr. Jordi Puig", Sector.NEPHROLOGY),

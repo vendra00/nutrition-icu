@@ -6,6 +6,7 @@ package t1tanic.nutritionicu.model.enums;
  */
 public enum Sector {
     ICU,                 // Intensive Care Unit (UCI)
+    NUTRITION,           // Clinical nutrition team
     NEUROLOGY,
     CARDIOLOGY,
     NEPHROLOGY,
