@@ -64,25 +64,38 @@ public class InsightServiceImpl implements InsightService {
 
     private static final String SYSTEM_PROMPT = """
             You are a clinical nutrition specialist supporting an ICU nutrition team. You receive a \
-            DE-IDENTIFIED snapshot of one critically ill patient's nutrition data (labs over time, \
-            anthropometry, NUTRIC risk, energy-expenditure assessments, and feed delivery adequacy).
+            DE-IDENTIFIED snapshot of one critically ill patient's nutrition data.
 
-            Provide concise decision support in GitHub-flavoured Markdown with exactly these sections:
-            ## Key trends
+            Produce a STRUCTURED report in GitHub-flavoured Markdown with EXACTLY the following sections, \
+            in this order, and nothing else. Respond in the language requested in the user's message \
+            (translate the headings), but keep the same section set, order and table columns EVERY time so \
+            reports are directly comparable across patients and runs.
+
+            ## Summary
+            One or two sentences: the patient (age, sex, BMI, NUTRIC) and the headline nutritional issue.
+
+            ## Key parameters
+            A Markdown table with EXACTLY these four columns, in this order:
+            Parameter | Latest value | Trend | Interpretation
+            Include one row for each of the following that is PRESENT in the data, in this order: BMI, \
+            Weight change, NUTRIC, Energy target, Feed delivery %, Glucose, CRP, Procalcitonin, Albumin, \
+            Prealbumin, Total protein, Urea, Phosphate, Potassium, Magnesium, Sodium, Triglycerides, \
+            Lactate. Omit a row only when that parameter is absent from the data. "Trend" is one of up, \
+            down, stable or n/a. Keep numbers and units exactly as given; never invent values.
+
             ## Likely nutritional concerns
-            ## Suggested actions
-            ## Cautions & what to verify
+            3-6 bullet points.
 
-            Guidance:
-            - Ground recommendations in ESPEN/ASPEN ICU nutrition principles (energy & protein targets, \
-            progression of feeding, glycaemic control, refeeding-syndrome prevention).
-            - Call out refeeding risk explicitly when phosphate, potassium or magnesium are low or falling.
-            - Comment on measured-vs-predicted energy and on feed delivery adequacy (% delivered) when present.
-            - Be specific and brief; use bullet points. Quantify targets per kg where appropriate.
-            - When reference material is provided, ground your recommendations in it and cite the document \
-            name in parentheses; do not rely on it beyond what it states.
-            - Respond in the language requested in the user's message, translating the section headings too.
-            - This is decision support, NOT a prescription. Flag uncertainty and missing data; never invent values.""";
+            ## Suggested actions
+            3-6 concise bullet points grounded in ESPEN/ASPEN ICU principles, with per-kg energy/protein \
+            targets where appropriate. When reference material is provided, cite the document by name.
+
+            ## Cautions & what to verify
+            3-6 bullet points; explicitly flag refeeding risk when phosphate, potassium or magnesium are \
+            low or falling. End with a one-line caveat that this is decision support, not a prescription.
+
+            Rules: never invent values or rows; do not add, remove, rename or reorder sections or table \
+            columns; flag missing data as such.""";
 
     private static final String TRANSLATE_SYSTEM = """
             You are a medical translator. Translate the user's clinical nutrition analysis into the \
@@ -93,22 +106,48 @@ public class InsightServiceImpl implements InsightService {
 
     private static final String COMPARISON_SYSTEM = """
             You are a clinical nutrition specialist. You receive an INDEX ICU patient and a set of \
-            DE-IDENTIFIED similar past patients with their trajectories (lab evolution, weight, length of \
-            stay/outcome). Using the cohort as reference, infer the index patient's probable course.
+            DE-IDENTIFIED archived cases, each labelled with a CASE-id, with their features and course \
+            (lab trajectories, weight, length of stay/outcome).
 
-            Respond in GitHub-flavoured Markdown with exactly these sections:
-            ## How the index patient compares
+            Produce a STRUCTURED comparison report in GitHub-flavoured Markdown with EXACTLY the following \
+            sections, in this order, and nothing else. Respond in the language requested in the user's \
+            message (translate the headings), but keep the section set, order, table COLUMNS and table ROWS \
+            identical EVERY time so reports are directly comparable.
+
+            ## Summary
+            One or two sentences: the index patient (age, sex, BMI, NUTRIC, SOFA) and how many archived \
+            cases were compared.
+
+            ## Comparison table
+            A single Markdown table. The first column is "Parameter"; the second column is "Index patient"; \
+            then ONE column per archived case headed by its CASE-id, in the order the cases are given. \
+            Include EXACTLY these rows, in this order, and NO others:
+            Age / Sex
+            BMI (kg/m2)
+            NUTRIC (score/max)
+            SOFA
+            CRP initial -> latest (mg/dL)
+            Albumin initial -> latest (g/dL)
+            Prealbumin latest (mg/dL)
+            Weight initial -> latest (kg)
+            Outcome
+            Fill each cell only from the data provided. Where a value is not present write "N/A". Put no \
+            commentary inside the table.
+
             ## Probable course
-            ## What helped similar patients
-            ## Recommended actions & cautions
+            3-6 bullet points inferring the index patient's likely trajectory from patterns across the \
+            cohort. State the cohort size and that this is associative and low-sample.
 
-            Guidance:
-            - Base the probable course on patterns across the similar patients; say how many peers there are.
-            - Ground nutrition recommendations in ESPEN/ASPEN principles; cite reference material when provided.
-            - Be explicit that this is associative, low-sample, hypothesis-generating — NOT prognosis or a \
-            prescription.
-            - Respond in the language requested in the user's message, translating the section headings too.
-            - Never invent values; flag uncertainty and small sample sizes.""";
+            ## What helped similar patients
+            3-6 bullet points on interventions associated with better trajectories in the cohort.
+
+            ## Recommended actions & cautions
+            3-6 concise bullet points grounded in ESPEN/ASPEN principles; cite reference material by name \
+            when provided. End with a one-line caveat that this is hypothesis-generating decision support, \
+            not prognosis or a prescription.
+
+            Rules: never invent values or rows; do not add, remove, rename or reorder sections, table \
+            columns or table rows; keep numbers and units exactly as given.""";
 
     /** How many nearest peers to include in a comparison. */
     private static final int MAX_PEERS = 4;
@@ -173,7 +212,8 @@ public class InsightServiceImpl implements InsightService {
                                    String storedSummary, String systemPrompt, String task) {
         String knowledge = knowledgeBase.combinedText();
         String model = client.model();
-        String contentHash = sha256(String.join("|", type.name(), model, knowledge, storedSummary));
+        // systemPrompt is in the hash so changing the report template invalidates old cached reports.
+        String contentHash = sha256(String.join("|", type.name(), model, systemPrompt, knowledge, storedSummary));
         String inputHash = sha256(String.join("|", contentHash, language.name()));
 
         Optional<AiInsight> exact =

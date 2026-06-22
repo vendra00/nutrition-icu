@@ -7,7 +7,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * {@code ANTHROPIC_API_KEY} environment variable (see application.properties) and is never committed.
  */
 @ConfigurationProperties(prefix = "anthropic")
-public record AnthropicProperties(String apiKey, String model, String baseUrl, String version, Integer maxTokens) {
+public record AnthropicProperties(String apiKey, String model, String baseUrl, String version,
+                                  Integer maxTokens, Double temperature) {
 
     public AnthropicProperties {
         if (baseUrl == null || baseUrl.isBlank()) {
@@ -21,6 +22,9 @@ public record AnthropicProperties(String apiKey, String model, String baseUrl, S
         }
         if (maxTokens == null) {
             maxTokens = 1400;
+        }
+        if (temperature == null) {
+            temperature = 0.2; // low, for consistent/structured clinical reports
         }
     }
 

@@ -1,0 +1,6 @@
+{
+  "_comment": "Rename this file to references.json to enable curated citations. Map each PDF file name to its full reference (e.g. Vancouver style). When a file is listed here, the citation is shown and cited instead of the PDF's title; files not listed fall back to the PDF metadata title, then a heuristic, then the file name. Reloaded with the knowledge base (restart the app after editing).",
+  "13054_2019_Article_2657.pdf": "Author AA, Author BB, Author CC. Full article title here. Journal Abbrev. 2019;23(1):1-15.",
+  "Algoritmos_paciente_critico_2022_v1.0.pdf": "Sociedad/Autor. Título del algoritmo del paciente crítico. Ciudad: Editorial; 2022.",
+  "S021056912030067X.pdf": "Author AA, Author BB. Full article title here. Nutr Hosp. 2020;37(3):000-000."
+}

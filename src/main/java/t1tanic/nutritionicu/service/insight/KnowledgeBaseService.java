@@ -1,6 +1,7 @@
 package t1tanic.nutritionicu.service.insight;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -8,6 +9,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
@@ -17,6 +19,8 @@ import org.springframework.stereotype.Service;
 import t1tanic.nutritionicu.config.AppProperties;
 import t1tanic.nutritionicu.dto.KnowledgeRef;
 import t1tanic.nutritionicu.service.ingestion.PdfTextExtractor;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * Reference library for AI insights: extracts the text of study/guideline PDFs dropped into the
@@ -31,14 +35,19 @@ public class KnowledgeBaseService {
     /** Cap on the combined knowledge text sent to the model, to bound token cost. */
     private static final int MAX_TOTAL_CHARS = 240_000;
 
+    /** Optional sidecar mapping a PDF file name to its curated (Vancouver) citation. */
+    private static final String CITATIONS_FILE = "references.json";
+
     private final Path root;
     private final PdfTextExtractor extractor;
+    private final ObjectMapper objectMapper;
 
     private volatile List<Document> documents;
 
-    public KnowledgeBaseService(AppProperties properties, PdfTextExtractor extractor) {
+    public KnowledgeBaseService(AppProperties properties, PdfTextExtractor extractor, ObjectMapper objectMapper) {
         this.root = Path.of(properties.insights().knowledgeRoot());
         this.extractor = extractor;
+        this.objectMapper = objectMapper;
     }
 
     /** A loaded reference document: file name, derived title and extracted text. */
@@ -135,6 +144,7 @@ public class KnowledgeBaseService {
             log.info("AI knowledge base: folder {} not present - no references loaded", root);
             return List.of();
         }
+        Map<String, String> citations = loadCitations();
         List<Document> loaded = new ArrayList<>();
         try (var stream = Files.list(root)) {
             List<Path> pdfs = stream
@@ -146,7 +156,8 @@ public class KnowledgeBaseService {
                 try {
                     String text = extractor.extract(pdf).strip();
                     if (!text.isBlank()) {
-                        loaded.add(new Document(pdf.getFileName().toString(), titleOf(pdf, text), text));
+                        String name = pdf.getFileName().toString();
+                        loaded.add(new Document(name, titleFor(pdf, text, citations.get(name)), text));
                     } else {
                         log.warn("AI knowledge base: {} yielded no text - skipped", pdf.getFileName());
                     }
@@ -157,8 +168,32 @@ public class KnowledgeBaseService {
         } catch (IOException e) {
             throw new UncheckedIOException("Failed to list knowledge folder: " + root, e);
         }
-        log.info("AI knowledge base: loaded {} reference document(s) from {}", loaded.size(), root);
+        log.info("AI knowledge base: loaded {} reference document(s) from {} ({} curated citation(s))",
+                loaded.size(), root, citations.size());
         return loaded;
+    }
+
+    /** Reads the optional {@code references.json} (file name -> citation); empty when absent or invalid. */
+    private Map<String, String> loadCitations() {
+        Path file = root.resolve(CITATIONS_FILE);
+        if (!Files.isRegularFile(file)) {
+            return Map.of();
+        }
+        try (InputStream in = Files.newInputStream(file)) {
+            Map<String, String> map = objectMapper.readValue(in, new TypeReference<Map<String, String>>() {});
+            return map == null ? Map.of() : map;
+        } catch (IOException | RuntimeException e) {
+            log.warn("AI knowledge base: could not read {} - ignoring ({})", CITATIONS_FILE, e.getMessage());
+            return Map.of();
+        }
+    }
+
+    /** Curated citation if the sidecar provides one, else the title derived from the PDF. */
+    private static String titleFor(Path pdf, String text, String citation) {
+        if (citation != null && !citation.isBlank()) {
+            return citation.strip();
+        }
+        return titleOf(pdf, text);
     }
 
     /** PDF metadata title, else the first plausible line of text, else the file name without extension. */

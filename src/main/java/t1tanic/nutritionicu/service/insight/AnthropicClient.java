@@ -53,6 +53,7 @@ public class AnthropicClient {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("model", props.model());
         body.put("max_tokens", props.maxTokens());
+        body.put("temperature", props.temperature());
         body.put("system", systemBlocks(instructions, knowledge));
         body.put("messages", List.of(Map.of("role", "user", "content", userPrompt)));
 
