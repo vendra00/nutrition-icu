@@ -14,6 +14,7 @@ import t1tanic.nutritionicu.model.NutritionRiskAssessment;
 import t1tanic.nutritionicu.model.Patient;
 import t1tanic.nutritionicu.model.PatientCase;
 import t1tanic.nutritionicu.model.WeightMeasurement;
+import t1tanic.nutritionicu.model.enums.Sex;
 import t1tanic.nutritionicu.repo.PatientCaseRepository;
 import t1tanic.nutritionicu.service.lab.LabResultService;
 import t1tanic.nutritionicu.service.nutrition.NutritionService;
@@ -50,6 +51,14 @@ public class PatientCaseService {
 
     /** The de-identified comparison context: the index features plus the nearest archived cases. */
     public record Cohort(int size, String text) {
+    }
+
+    /** The index patient's features plus the nearest archived cases as entities, for charting. */
+    public record CohortComparison(Integer age, Sex sex, Double bmi, Integer nutric, Integer nutricMax,
+                                   Boolean highRisk, List<PatientCase> peers) {
+        public boolean hasPeers() {
+            return !peers.isEmpty();
+        }
     }
 
     public long archiveSize() {
@@ -96,13 +105,43 @@ public class PatientCaseService {
         if (!idx.comparable()) {
             return new Cohort(0, "");
         }
+        List<PatientCase> nearest = nearestCases(indexPatientId, idx, maxPeers);
+        if (nearest.isEmpty()) {
+            return new Cohort(0, "");
+        }
+        StringBuilder sb = new StringBuilder();
+        sb.append("INDEX PATIENT (the one being compared):\n");
+        sb.append("- ").append(featuresLine(index, idx)).append('\n');
+        sb.append("\nSIMILAR ARCHIVED CASES (de-identified, most similar first):\n");
+        int i = 1;
+        for (PatientCase peer : nearest) {
+            sb.append(i++).append(". [").append(peer.getCaseCode()).append("] ")
+                    .append(peer.getCourseText()).append('\n');
+        }
+        return new Cohort(nearest.size(), sb.toString().strip());
+    }
 
+    /** The index patient's features plus the nearest archived cases as entities, for the comparison charts. */
+    @Transactional(readOnly = true)
+    public CohortComparison compareCohort(Long indexPatientId, int maxPeers) {
+        Patient index = patientService.findById(indexPatientId)
+                .orElseThrow(() -> new IllegalArgumentException("Unknown patient: " + indexPatientId));
+        Features idx = features(index);
+        if (!idx.comparable()) {
+            return new CohortComparison(null, index.getSex(), null, null, null, null, List.of());
+        }
+        Integer ageYears = idx.age() == null ? null : (int) Math.round(idx.age());
+        return new CohortComparison(ageYears, index.getSex(), idx.bmi(), idx.nutric(), idx.nutricMax(),
+                idx.highRisk(), nearestCases(indexPatientId, idx, maxPeers));
+    }
+
+    /** Ranks the archive against the index features and returns the nearest cases (indexed age pre-filter). */
+    private List<PatientCase> nearestCases(Long indexPatientId, Features idx, int maxPeers) {
         int age = (int) Math.round(idx.age());
         List<PatientCase> candidates = caseRepository.findByAgeYearsBetween(age - AGE_WINDOW, age + AGE_WINDOW);
         if (candidates.size() < maxPeers) {
-            candidates = caseRepository.findAll(); // archive still small — rank them all
+            candidates = caseRepository.findAll(); // archive still small - rank them all
         }
-
         List<Scored> ranked = new ArrayList<>();
         for (PatientCase c : candidates) {
             if (indexPatientId.equals(c.getSourcePatientId()) || c.getBmi() == null || c.getAgeYears() == null) {
@@ -111,21 +150,7 @@ public class PatientCaseService {
             ranked.add(new Scored(c, distance(idx, caseFeatures(c))));
         }
         ranked.sort(Comparator.comparingDouble(Scored::distance));
-        List<Scored> nearest = ranked.subList(0, Math.min(maxPeers, ranked.size()));
-        if (nearest.isEmpty()) {
-            return new Cohort(0, "");
-        }
-
-        StringBuilder sb = new StringBuilder();
-        sb.append("INDEX PATIENT (the one being compared):\n");
-        sb.append("- ").append(featuresLine(index, idx)).append('\n');
-        sb.append("\nSIMILAR ARCHIVED CASES (de-identified, most similar first):\n");
-        int i = 1;
-        for (Scored s : nearest) {
-            sb.append(i++).append(". [").append(s.patientCase().getCaseCode()).append("] ")
-                    .append(s.patientCase().getCourseText()).append('\n');
-        }
-        return new Cohort(nearest.size(), sb.toString().strip());
+        return ranked.subList(0, Math.min(maxPeers, ranked.size())).stream().map(Scored::patientCase).toList();
     }
 
     // --- feature extraction & distance ---

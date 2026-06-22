@@ -1,5 +1,7 @@
 package t1tanic.nutritionicu.ui.insights;
 import t1tanic.nutritionicu.ui.MainLayout;
+import t1tanic.nutritionicu.ui.common.BarList;
+import t1tanic.nutritionicu.ui.common.Donut;
 import t1tanic.nutritionicu.ui.common.TrendChart;
 
 import com.vaadin.flow.component.Component;
@@ -12,9 +14,11 @@ import com.vaadin.flow.component.html.Anchor;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.H3;
+import com.vaadin.flow.component.html.ListItem;
 import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.html.Pre;
 import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.html.UnorderedList;
 import com.vaadin.flow.component.markdown.Markdown;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
@@ -22,6 +26,8 @@ import com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.progressbar.ProgressBar;
+import com.vaadin.flow.component.tabs.Tab;
+import com.vaadin.flow.component.tabs.Tabs;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.server.streams.DownloadHandler;
@@ -37,6 +43,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
 import t1tanic.nutritionicu.dto.KnowledgeRef;
 import t1tanic.nutritionicu.dto.PatientInsight;
 import t1tanic.nutritionicu.model.EnergyAssessment;
@@ -80,6 +87,12 @@ public class InsightsView extends VerticalLayout {
     }
 
     private static final int MAX_LAB_CHARTS = 6;
+    /** How many of the nearest archived cases to chart in the Cohort tab (a broader set than the AI compare). */
+    private static final int CHART_PEERS = 12;
+    private static final String GREEN = "#2E7D32";
+    private static final String RED = "#C62828";
+    private static final String GREY = "#9E9E9E";
+    private static final String BLUE = "#1565C0";
     private static final DateTimeFormatter TS =
             DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm").withZone(ZoneId.systemDefault());
 
@@ -96,11 +109,11 @@ public class InsightsView extends VerticalLayout {
     private final Button archive = new Button("Archive as case");
     private final Span archiveInfo = new Span();
     private final ProgressBar progress = new ProgressBar();
-    private final Div trends = new Div();
+    private final Details trends = new Details();
     private final Span status = new Span();
     private final Markdown result = new Markdown();
     private final Div resultCard = new Div(result);
-    private final Div grounding = new Div();
+    private final Details grounding = new Details();
     private final Pre sent = new Pre();
     private final Details sentDetails = new Details("Data sent to the model (de-identified)", sent);
     private final Div historyContainer = new Div();
@@ -174,7 +187,7 @@ public class InsightsView extends VerticalLayout {
 
         historyContainer.setWidthFull();
 
-        add(trends, status, resultCard, grounding, sentDetails, historyContainer);
+        add(status, resultCard, grounding, sentDetails, trends, historyContainer);
 
         if (!insightService.isConfigured()) {
             generate.setEnabled(false);
@@ -183,14 +196,17 @@ public class InsightsView extends VerticalLayout {
         }
 
         picker.addValueChangeListener(e -> {
-            clearResult();
-            if (e.getValue() == null) {
+            Patient patient = e.getValue();
+            if (patient == null) {
+                clearResult();
                 trends.removeAll();
+                trends.setVisible(false);
                 historyContainer.removeAll();
-            } else {
-                renderTrends(e.getValue().getId());
-                renderHistory(e.getValue().getId());
+                return;
             }
+            renderTrends(patient.getId());
+            renderHistory(patient.getId());
+            showLatestInsight(patient.getId());
         });
 
         generate.addClickListener(e -> launch(picker.getValue(), false));
@@ -276,13 +292,13 @@ public class InsightsView extends VerticalLayout {
         if (refs.isEmpty()) {
             grounding.setVisible(false);
         } else {
-            grounding.add(new Span("Grounded on " + refs.size() + " reference(s): "));
-            for (int i = 0; i < refs.size(); i++) {
-                grounding.add(referenceLink(refs.get(i)));
-                if (i < refs.size() - 1) {
-                    grounding.add(new Span(", "));
-                }
+            grounding.setSummaryText("Grounded on " + refs.size() + " reference(s)");
+            UnorderedList list = new UnorderedList();
+            for (KnowledgeRef ref : refs) {
+                list.add(new ListItem(referenceLink(ref)));
             }
+            grounding.add(list);
+            grounding.setOpened(true);
             grounding.setVisible(true);
         }
         resultCard.setVisible(true);
@@ -303,6 +319,20 @@ public class InsightsView extends VerticalLayout {
         anchor.setTarget("_blank");
         anchor.getElement().setAttribute("title", ref.fileName());
         return anchor;
+    }
+
+    /** On selecting a patient, show their most recent saved insight (if any) instead of an empty result. */
+    private void showLatestInsight(Long patientId) {
+        List<PatientInsight> past = insightService.history(patientId);
+        if (past.isEmpty()) {
+            clearResult();
+            return;
+        }
+        PatientInsight latest = past.get(0); // history is newest first
+        languagePicker.setValue(latest.language());
+        String noun = latest.type() == InsightType.COMPARISON ? "comparison" : "analysis";
+        showInsight(latest, "Last saved " + noun + " (" + latest.language().label() + ") from "
+                + TS.format(latest.createdAt()));
     }
 
     private static String statusFor(PatientInsight insight) {
@@ -355,36 +385,123 @@ public class InsightsView extends VerticalLayout {
 
     private void renderTrends(Long patientId) {
         trends.removeAll();
-        List<Component> charts = new ArrayList<>();
-        energyChart(patientId).ifPresent(charts::add);
-        deliveryChart(patientId).ifPresent(charts::add);
 
-        int labCharts = 0;
+        List<Component> labCharts = new ArrayList<>();
         for (Map.Entry<String, String> entry : CHART_LABS.entrySet()) {
-            if (labCharts >= MAX_LAB_CHARTS) {
+            if (labCharts.size() >= MAX_LAB_CHARTS) {
                 break;
             }
-            Optional<Component> chart = labChart(patientId, entry.getKey(), entry.getValue());
-            if (chart.isPresent()) {
-                charts.add(chart.get());
-                labCharts++;
-            }
+            labChart(patientId, entry.getKey(), entry.getValue()).ifPresent(labCharts::add);
         }
+        Optional<Component> energy = energyChart(patientId);
+        Optional<Component> delivery = deliveryChart(patientId);
 
-        H3 heading = new H3("Trends");
-        heading.addClassNames(LumoUtility.Margin.Top.MEDIUM, LumoUtility.Margin.Bottom.SMALL);
-        trends.add(heading);
-        if (charts.isEmpty()) {
-            Paragraph empty = new Paragraph("No numeric trends recorded for this patient yet.");
-            empty.addClassNames(LumoUtility.TextColor.SECONDARY);
-            trends.add(empty);
+        record TrendTab(String label, Component content) {
+        }
+        List<TrendTab> defs = new ArrayList<>();
+        cohortTab(patientId).ifPresent(c -> defs.add(new TrendTab("Cohort", c)));
+        if (!labCharts.isEmpty()) {
+            defs.add(new TrendTab("Labs", stack(labCharts)));
+        }
+        energy.ifPresent(c -> defs.add(new TrendTab("Energy", c)));
+        delivery.ifPresent(c -> defs.add(new TrendTab("Delivery", c)));
+
+        if (defs.isEmpty()) {
+            trends.setVisible(false);
             return;
         }
-        Div grid = new Div();
-        grid.getStyle().set("display", "flex").set("flex-direction", "column")
+
+        Tabs tabs = new Tabs();
+        tabs.setWidthFull();
+        Div panels = new Div();
+        panels.setWidthFull();
+        List<Component> contents = new ArrayList<>();
+        for (TrendTab def : defs) {
+            tabs.add(new Tab(def.label()));
+            contents.add(def.content());
+            panels.add(def.content());
+        }
+        for (int i = 0; i < contents.size(); i++) {
+            contents.get(i).setVisible(i == 0);
+        }
+        tabs.addSelectedChangeListener(e -> {
+            int index = tabs.getSelectedIndex();
+            for (int i = 0; i < contents.size(); i++) {
+                contents.get(i).setVisible(i == index);
+            }
+        });
+        trends.setSummaryText("Trends & charts");
+        trends.setOpened(false); // collapsed so the insight shows first
+        trends.setVisible(true);
+        trends.add(tabs, panels);
+    }
+
+    private static Div stack(List<Component> charts) {
+        Div column = new Div();
+        column.getStyle().set("display", "flex").set("flex-direction", "column")
                 .set("gap", "var(--lumo-space-m)").set("width", "100%");
-        charts.forEach(grid::add);
-        trends.add(grid);
+        charts.forEach(column::add);
+        return column;
+    }
+
+    /** Charts comparing the selected patient against the most similar archived cases. */
+    private Optional<Component> cohortTab(Long patientId) {
+        PatientCaseService.CohortComparison cc = patientCaseService.compareCohort(patientId, CHART_PEERS);
+        if (!cc.hasPeers()) {
+            return Optional.empty();
+        }
+        List<PatientCase> peers = cc.peers();
+        List<Component> charts = new ArrayList<>();
+
+        Paragraph intro = new Paragraph("The selected patient vs the " + peers.size()
+                + " most similar archived cases.");
+        intro.addClassNames(LumoUtility.TextColor.SECONDARY, LumoUtility.FontSize.SMALL);
+        charts.add(intro);
+
+        long survived = peers.stream().filter(p -> Boolean.TRUE.equals(p.getDischarged())).count();
+        long died = peers.stream().filter(p -> Boolean.FALSE.equals(p.getDischarged())).count();
+        long unknown = peers.size() - survived - died;
+        Donut outcomes = new Donut(List.of(
+                new Donut.Slice("Recovered", survived, GREEN),
+                new Donut.Slice("Died", died, RED),
+                new Donut.Slice("Unknown", unknown, GREY)),
+                peers.size() + " cases");
+        charts.add(chartCard("Outcomes of the " + peers.size() + " most similar cases", outcomes));
+
+        charts.add(chartCard("NUTRIC: selected patient vs similar cases",
+                comparisonBars(cc.nutric() == null ? null : cc.nutric().doubleValue(), peers,
+                        p -> p.getNutricScore() == null ? null : p.getNutricScore().doubleValue())));
+        charts.add(chartCard("BMI: selected patient vs similar cases",
+                comparisonBars(cc.bmi(), peers, PatientCase::getBmi)));
+        charts.add(chartCard("Length of stay (days), green = recovered / red = died", staysBars(peers)));
+
+        return Optional.of(stack(charts));
+    }
+
+    private static BarList comparisonBars(Double indexValue, List<PatientCase> peers,
+                                          Function<PatientCase, Double> metric) {
+        List<BarList.Bar> bars = new ArrayList<>();
+        if (indexValue != null) {
+            bars.add(new BarList.Bar("Selected patient", indexValue, BLUE));
+        }
+        for (PatientCase p : peers) {
+            Double value = metric.apply(p);
+            if (value != null) {
+                bars.add(new BarList.Bar(p.getCaseCode(), value, GREY));
+            }
+        }
+        return new BarList(bars);
+    }
+
+    private static BarList staysBars(List<PatientCase> peers) {
+        List<BarList.Bar> bars = new ArrayList<>();
+        for (PatientCase p : peers) {
+            if (p.getLengthOfStayDays() != null) {
+                String color = Boolean.FALSE.equals(p.getDischarged()) ? RED : GREEN;
+                bars.add(new BarList.Bar(p.getCaseCode(), p.getLengthOfStayDays(), color));
+            }
+        }
+        return new BarList(bars);
     }
 
     private Optional<Component> labChart(Long patientId, String code, String label) {
