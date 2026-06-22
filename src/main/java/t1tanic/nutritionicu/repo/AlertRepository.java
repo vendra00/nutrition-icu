@@ -16,6 +16,9 @@ public interface AlertRepository extends JpaRepository<Alert, Long> {
 
     List<Alert> findByPatientId(Long patientId);
 
+    /** Whether a report has already produced an alert — keeps re-evaluation idempotent. */
+    boolean existsByReportId(Long reportId);
+
     /** All alerts, newest first — most recently created leads, ties broken by id. */
     List<Alert> findAllByOrderByCreatedAtDescIdDesc();
 

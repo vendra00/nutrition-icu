@@ -78,6 +78,9 @@ public class AlertServiceImpl implements AlertService {
         if (patient == null || !patient.isMonitored()) {
             return Optional.empty();
         }
+        if (report.getId() != null && alertRepository.existsByReportId(report.getId())) {
+            return Optional.empty(); // already evaluated this report — stays idempotent across restarts
+        }
 
         List<LabResult> abnormal = report.getSections().stream()
                 .flatMap(section -> section.getResults().stream())

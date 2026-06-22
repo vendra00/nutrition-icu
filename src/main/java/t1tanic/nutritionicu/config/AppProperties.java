@@ -11,10 +11,15 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  * {@code application.properties} but aren't bound here.
  */
 @ConfigurationProperties("app")
-public record AppProperties(@DefaultValue Ingestion ingestion, @DefaultValue Ocr ocr) {
+public record AppProperties(@DefaultValue Ingestion ingestion, @DefaultValue Ocr ocr,
+                            @DefaultValue Insights insights) {
 
     /** Where report PDFs are read from. */
     public record Ingestion(@DefaultValue("src/main/resources/data") String root) {
+    }
+
+    /** AI-insights knowledge base: a folder of reference study/guideline PDFs the model is grounded on. */
+    public record Insights(@DefaultValue("src/main/resources/knowledge") String knowledgeRoot) {
     }
 
     /** OCR fallback settings for image-only/scanned PDFs. */

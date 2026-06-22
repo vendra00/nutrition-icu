@@ -104,6 +104,11 @@ public class SandboxInitializer implements ApplicationRunner {
     }
 
     private void markAllPatientsMonitored() {
+        // Seed the initial monitored cohort only once. Once any patient is monitored, leave the flag to
+        // clinicians (so a manual discharge/unmonitor isn't undone on the next restart now data persists).
+        if (!patientRepository.findByMonitoredTrue().isEmpty()) {
+            return;
+        }
         List<Patient> patients = patientRepository.findAll();
         patients.forEach(patient -> patient.setMonitored(true));
         patientRepository.saveAll(patients);
