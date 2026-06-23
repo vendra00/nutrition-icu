@@ -6,8 +6,8 @@ import t1tanic.nutritionicu.model.enums.Sex;
 
 /**
  * Editable demographic and administrative fields of a patient, as entered manually by a
- * clinician in the Patients tab. Anthropometry (height/weight) and the stay window are
- * edited separately and are intentionally not part of this form.
+ * clinician in the Patients tab, including the stay window (admission / discharge dates).
+ * Anthropometry (height/weight) is edited in the Nutrition tab and is not part of this form.
  */
 public record PatientDetails(
         String medicalRecordNumber,
@@ -17,5 +17,7 @@ public record PatientDetails(
         String healthCardId,
         String socialSecurityNumber,
         AdmissionDiagnosis admissionDiagnosis,
-        boolean monitored) {
+        boolean monitored,
+        LocalDate admissionDate,
+        LocalDate dischargeDate) {
 }

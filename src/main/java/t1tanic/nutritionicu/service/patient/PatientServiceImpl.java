@@ -1,6 +1,5 @@
 package t1tanic.nutritionicu.service.patient;
 
-import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
@@ -39,16 +38,6 @@ public class PatientServiceImpl implements PatientService {
 
     @Override
     @Transactional
-    public Patient updateStay(Long patientId, LocalDate admissionDate, LocalDate dischargeDate) {
-        Patient patient = patientRepository.findById(patientId)
-                .orElseThrow(() -> new IllegalArgumentException("No patient with id " + patientId));
-        patient.setAdmissionDate(admissionDate);
-        patient.setDischargeDate(dischargeDate);
-        return patientRepository.save(patient);
-    }
-
-    @Override
-    @Transactional
     public Patient create(PatientDetails details) {
         String nhc = requireNhc(details);
         requireNhcAvailable(nhc, null);
@@ -78,6 +67,8 @@ public class PatientServiceImpl implements PatientService {
         patient.setSocialSecurityNumber(details.socialSecurityNumber());
         patient.setAdmissionDiagnosis(details.admissionDiagnosis());
         patient.setMonitored(details.monitored());
+        patient.setAdmissionDate(details.admissionDate());
+        patient.setDischargeDate(details.dischargeDate());
     }
 
     private static String requireNhc(PatientDetails details) {

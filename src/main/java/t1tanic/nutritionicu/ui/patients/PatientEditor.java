@@ -19,9 +19,9 @@ import t1tanic.nutritionicu.ui.common.I18n;
 import t1tanic.nutritionicu.ui.common.UiFormat;
 
 /**
- * Add/edit dialog for a patient's demographic and administrative details. Pass {@code null} as the
- * patient to create a new one; pass an existing patient to edit it. Anthropometry (height/weight) is
- * edited in the Nutrition tab and the stay window in {@link PatientStayDialog}, so neither appears here.
+ * Add/edit dialog for a patient's demographic and administrative details, including the stay window
+ * (admission / discharge dates). Pass {@code null} as the patient to create a new one; pass an existing
+ * patient to edit it. Anthropometry (height/weight) is edited in the Nutrition tab and is not shown here.
  */
 public class PatientEditor extends Dialog {
 
@@ -32,6 +32,8 @@ public class PatientEditor extends Dialog {
     private final TextField healthCardId = new TextField(I18n.t("editor.cip"));
     private final TextField socialSecurityNumber = new TextField(I18n.t("editor.ssn"));
     private final ComboBox<AdmissionDiagnosis> admissionDiagnosis = new ComboBox<>(I18n.t("editor.diagnosis"));
+    private final DatePicker admissionDate = new DatePicker(I18n.t("stay.admission"));
+    private final DatePicker dischargeDate = new DatePicker(I18n.t("stay.discharge"));
     private final Checkbox monitored = new Checkbox(I18n.t("editor.monitored"));
 
     public PatientEditor(Patient patient, PatientService patientService, Runnable onSaved) {
@@ -41,6 +43,8 @@ public class PatientEditor extends Dialog {
 
         nhc.setRequiredIndicatorVisible(true);
         UiFormat.dayMonthYear(birthDate);
+        UiFormat.dayMonthYear(admissionDate);
+        UiFormat.dayMonthYear(dischargeDate);
         sex.setItems(Sex.values());
         sex.setItemLabelGenerator(s -> I18n.t("sex." + s.name()));
         sex.setValue(Sex.UNKNOWN);
@@ -56,11 +60,14 @@ public class PatientEditor extends Dialog {
             healthCardId.setValue(nullToEmpty(patient.getHealthCardId()));
             socialSecurityNumber.setValue(nullToEmpty(patient.getSocialSecurityNumber()));
             admissionDiagnosis.setValue(patient.getAdmissionDiagnosis());
+            admissionDate.setValue(patient.getAdmissionDate());
+            dischargeDate.setValue(patient.getDischargeDate());
             monitored.setValue(patient.isMonitored());
         }
 
         FormLayout form = new FormLayout(
-                nhc, fullName, birthDate, sex, healthCardId, socialSecurityNumber, admissionDiagnosis, monitored);
+                nhc, fullName, birthDate, sex, healthCardId, socialSecurityNumber, admissionDiagnosis,
+                admissionDate, dischargeDate, monitored);
         form.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1),
                 new FormLayout.ResponsiveStep("320px", 2));
         form.setColspan(monitored, 2);
@@ -81,7 +88,9 @@ public class PatientEditor extends Dialog {
                 emptyToNull(healthCardId.getValue()),
                 emptyToNull(socialSecurityNumber.getValue()),
                 admissionDiagnosis.getValue(),
-                monitored.getValue());
+                monitored.getValue(),
+                admissionDate.getValue(),
+                dischargeDate.getValue());
         try {
             if (patient == null) {
                 patientService.create(details);

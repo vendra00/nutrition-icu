@@ -7,6 +7,7 @@ import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.grid.Grid;
+import com.vaadin.flow.component.grid.GridVariant;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment;
 import com.vaadin.flow.component.orderedlayout.FlexComponent.JustifyContentMode;
@@ -15,7 +16,6 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.HasDynamicTitle;
 import com.vaadin.flow.router.Route;
 import jakarta.annotation.security.PermitAll;
-import java.time.LocalDate;
 import t1tanic.nutritionicu.model.Patient;
 import t1tanic.nutritionicu.service.nutrition.NutritionService;
 import t1tanic.nutritionicu.service.patient.PatientOverviewService;
@@ -54,19 +54,17 @@ public class PatientsView extends VerticalLayout implements HasDynamicTitle {
         header.setJustifyContentMode(JustifyContentMode.BETWEEN);
         add(header);
 
-        grid.addComponentColumn(this::nhcLink).setHeader(getTranslation("patients.col.nhc")).setAutoWidth(true);
-        grid.addColumn(Patient::getFullName).setHeader(getTranslation("patients.col.name")).setFlexGrow(2);
+        grid.addComponentColumn(this::nhcLink)
+                .setHeader(getTranslation("patients.col.nhc")).setAutoWidth(true).setFlexGrow(0);
+        grid.addColumn(Patient::getFullName)
+                .setHeader(getTranslation("patients.col.name")).setAutoWidth(true).setFlexGrow(1);
         grid.addColumn(this::sexText).setHeader(getTranslation("patients.col.sex")).setAutoWidth(true);
-        grid.addColumn(p -> dateText(p.getBirthDate())).setHeader(getTranslation("patients.col.born")).setAutoWidth(true);
-        grid.addColumn(p -> getTranslation(p.isMonitored() ? "common.yes" : "common.no"))
-                .setHeader(getTranslation("patients.col.monitored")).setAutoWidth(true);
-        grid.addColumn(p -> dateText(p.getAdmissionDate())).setHeader(getTranslation("patients.col.admitted")).setAutoWidth(true);
-        grid.addColumn(p -> dateText(p.getDischargeDate())).setHeader(getTranslation("patients.col.discharged")).setAutoWidth(true);
-        grid.addColumn(p -> UiFormat.number(p.getHeightCm())).setHeader(getTranslation("patients.col.height")).setAutoWidth(true);
-        grid.addColumn(p -> UiFormat.number(p.getCurrentWeightKg())).setHeader(getTranslation("patients.col.weight")).setAutoWidth(true);
+        grid.addColumn(p -> UiFormat.number(p.getCurrentWeightKg()))
+                .setHeader(getTranslation("patients.col.weight")).setAutoWidth(true);
         grid.addComponentColumn(p -> BmiBadge.ofNullable(nutritionService.metricsFor(p).bmi()))
                 .setHeader(getTranslation("patients.col.bmi")).setAutoWidth(true);
-        grid.addComponentColumn(this::actions).setHeader("").setAutoWidth(true);
+        grid.addComponentColumn(this::actions).setHeader("").setAutoWidth(true).setFlexGrow(0);
+        grid.addThemeVariants(GridVariant.LUMO_WRAP_CELL_CONTENT);
 
         grid.setItems(patientService.findAll());
         grid.setSizeFull();
@@ -82,12 +80,9 @@ public class PatientsView extends VerticalLayout implements HasDynamicTitle {
     }
 
     private Component actions(Patient patient) {
-        // Demographics here; body-data/weight live in the Nutrition tab, stay dates in the Stay dialog.
-        Button edit = new Button(getTranslation("common.edit"), e ->
+        // Demographics + stay dates are edited together here; body data/weight live in the Nutrition tab.
+        return new Button(getTranslation("common.edit"), e ->
                 new PatientEditor(patient, patientService, this::refresh).open());
-        Button stay = new Button(getTranslation("patients.stay"), e ->
-                new PatientStayDialog(patient, patientService, this::refresh).open());
-        return new HorizontalLayout(edit, stay);
     }
 
     private String sexText(Patient patient) {
@@ -96,9 +91,5 @@ public class PatientsView extends VerticalLayout implements HasDynamicTitle {
 
     private void refresh() {
         grid.setItems(patientService.findAll());
-    }
-
-    private static String dateText(LocalDate date) {
-        return UiFormat.date(date);
     }
 }

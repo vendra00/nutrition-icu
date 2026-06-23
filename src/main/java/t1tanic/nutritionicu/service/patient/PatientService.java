@@ -1,6 +1,5 @@
 package t1tanic.nutritionicu.service.patient;
 
-import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import t1tanic.nutritionicu.dto.PatientDetails;
@@ -17,9 +16,6 @@ public interface PatientService {
 
     /** The actively monitored cohort. */
     List<Patient> findMonitored();
-
-    /** Sets the patient's admission and discharge dates. */
-    Patient updateStay(Long patientId, LocalDate admissionDate, LocalDate dischargeDate);
 
     /**
      * Creates a new patient from manually entered details.
