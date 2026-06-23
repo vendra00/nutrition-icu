@@ -52,7 +52,8 @@ public class PatientOverviewServiceImpl implements PatientOverviewService {
                 p.ageOn(LocalDate.now()), p.getBirthDate(), p.getAdmissionDiagnosis(), p.isMonitored(),
                 p.getAdmissionDate(), p.getDischargeDate());
         Anthropometry anthropometry = new Anthropometry(p.getHeightCm(), p.getCurrentWeightKg(),
-                p.getUsualWeightKg(), m.bmi(), m.idealBodyWeightKg(), m.adjustedBodyWeightKg(),
+                p.getUsualWeightKg(), m.bmi(), p.isMisleadingBmi(),
+                m.idealBodyWeightKg(), m.adjustedBodyWeightKg(),
                 m.weightLossPercent(),
                 temp.map(TemperatureMeasurement::getTemperatureCelsius).orElse(null),
                 temp.map(TemperatureMeasurement::getMeasuredOn).orElse(null));
@@ -100,11 +101,14 @@ public class PatientOverviewServiceImpl implements PatientOverviewService {
                 c.kv(regular, bold, "Height", unit(a.heightCm(), "cm"));
                 c.kv(regular, bold, "Current weight", unit(a.currentWeightKg(), "kg"));
                 c.kv(regular, bold, "Usual weight", unit(a.usualWeightKg(), "kg"));
-                c.kv(regular, bold, "BMI", num(a.bmi()));
+                c.kv(regular, bold, "BMI", num(a.bmi()) + (a.misleadingBmi() ? " *" : ""));
                 c.kv(regular, bold, "Ideal body weight", unit(a.idealBodyWeightKg(), "kg"));
                 c.kv(regular, bold, "Adjusted body weight", unit(a.adjustedBodyWeightKg(), "kg"));
                 c.kv(regular, bold, "Recent weight loss", a.weightLossPercent() == null ? DASH : num(a.weightLossPercent()) + " %");
                 c.kv(regular, bold, "Temperature (latest)", temperature(a));
+                if (a.misleadingBmi()) {
+                    c.text(regular, 8, "* Clinician flagged: BMI may not reflect body composition.");
+                }
                 c.gap(10);
 
                 c.text(bold, 13, "Nutritional risk (NUTRIC)");

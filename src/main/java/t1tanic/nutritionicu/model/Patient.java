@@ -72,6 +72,16 @@ public class Patient extends BaseEntity {
     @Column(name = "usual_weight_kg")
     private Double usualWeightKg;
 
+    /**
+     * Clinician flag: this patient's BMI is misleading (e.g. an athletic build with high muscle mass that
+     * BMI scores as overweight/obese). Set from judgement even without body-composition numbers; the UI
+     * annotates the BMI wherever it's shown so it's read with caution.
+     */
+    // Default at the DB level so adding this column to the already-populated patient table (ddl-auto=update)
+    // backfills existing rows to false instead of failing on the NOT NULL constraint.
+    @Column(name = "misleading_bmi", nullable = false, columnDefinition = "boolean not null default false")
+    private boolean misleadingBmi = false;
+
     // --- Stay window ---
 
     /** Date the patient was admitted. */

@@ -82,11 +82,18 @@ public class PatientOverviewDialog extends Dialog {
                 new MetricsTable.Row(I18n.t("overview.currentweight"), UiFormat.number(a.currentWeightKg()) + " kg"),
                 new MetricsTable.Row(I18n.t("overview.usualweight"), UiFormat.number(a.usualWeightKg()) + " kg"),
                 new MetricsTable.Row(I18n.t("overview.temperature"), temperature(a)),
-                new MetricsTable.Row(I18n.t("overview.bmi"), UiFormat.number(a.bmi()), a.bmi()),
+                bmiRow(a),
                 new MetricsTable.Row(I18n.t("overview.ibw"), UiFormat.number(a.idealBodyWeightKg()) + " kg"),
                 new MetricsTable.Row(I18n.t("overview.abw"), UiFormat.number(a.adjustedBodyWeightKg()) + " kg"),
                 new MetricsTable.Row(I18n.t("overview.weightloss"), UiFormat.number(a.weightLossPercent()) + " %"));
         return grid;
+    }
+
+    /** BMI row with a {@code *} marker + tooltip when the clinician flagged the BMI as misleading. */
+    private static MetricsTable.Row bmiRow(Anthropometry a) {
+        String value = UiFormat.number(a.bmi()) + (a.misleadingBmi() ? " *" : "");
+        return new MetricsTable.Row(I18n.t("overview.bmi"), value, a.bmi(),
+                a.misleadingBmi() ? I18n.t("bmi.misleading.tooltip") : null);
     }
 
     private static Grid<MetricsTable.Row> riskTable(Risk r) {

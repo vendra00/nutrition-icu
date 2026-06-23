@@ -16,7 +16,8 @@ public record PatientOverview(Identity identity, Anthropometry anthropometry, Ri
     }
 
     public record Anthropometry(Double heightCm, Double currentWeightKg, Double usualWeightKg,
-                                Double bmi, Double idealBodyWeightKg, Double adjustedBodyWeightKg,
+                                Double bmi, boolean misleadingBmi,
+                                Double idealBodyWeightKg, Double adjustedBodyWeightKg,
                                 Double weightLossPercent,
                                 Double latestTemperatureC, LocalDate latestTemperatureDate) {
     }

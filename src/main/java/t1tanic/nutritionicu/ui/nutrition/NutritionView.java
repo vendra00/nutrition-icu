@@ -19,9 +19,12 @@ import com.vaadin.flow.router.HasDynamicTitle;
 import com.vaadin.flow.router.Route;
 import jakarta.annotation.security.PermitAll;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
 import t1tanic.nutritionicu.dto.NutritionMetrics;
+import t1tanic.nutritionicu.model.BodyCompositionMeasurement;
 import t1tanic.nutritionicu.model.NutritionDelivery;
 import t1tanic.nutritionicu.model.NutritionRiskAssessment;
 import t1tanic.nutritionicu.model.Patient;
@@ -122,15 +125,78 @@ public class NutritionView extends VerticalLayout implements HasDynamicTitle {
             });
             dialog.open();
         });
+        Button bodyComposition = new Button(getTranslation("nutrition.btn.bodycomp"), e -> {
+            BodyCompositionDialog dialog = new BodyCompositionDialog(patient, nutritionService);
+            dialog.addOpenedChangeListener(ev -> {
+                if (!ev.isOpened()) {
+                    reload(patient.getId());
+                }
+            });
+            dialog.open();
+        });
 
-        details.add(panel(getTranslation("nutrition.panel.anthropometry"), metricsTable(patient, m),
-                new HorizontalLayout(bodyData, weights, temperature, delivery)));
+        HorizontalLayout actions = new HorizontalLayout(bodyData, weights, temperature, delivery, bodyComposition);
+        actions.getStyle().set("flex-wrap", "wrap");
+        details.add(panel(getTranslation("nutrition.panel.anthropometry"), metricsTable(patient, m), actions));
+        details.add(panel(getTranslation("nutrition.panel.bodycomp"), bodyCompositionPanel(patient)));
         details.add(panel(getTranslation("nutrition.panel.risk"), riskPanel(patient)));
         details.add(panel(getTranslation("nutrition.panel.metabolic"),
                 new MetabolicMonitorPanel(patient, labResultService)));
         details.add(panel(getTranslation("nutrition.panel.weighttrend"), weightTrend(patient)));
         details.add(panel(getTranslation("nutrition.panel.temptrend"), temperatureTrend(patient)));
         details.add(panel(getTranslation("nutrition.panel.delivery"), deliveryTrend(patient)));
+    }
+
+    /** Latest body-composition values plus a fat % / muscle % trend, or a placeholder when none recorded. */
+    private VerticalLayout bodyCompositionPanel(Patient patient) {
+        VerticalLayout panel = new VerticalLayout();
+        panel.setPadding(false);
+        panel.setSpacing(false);
+        panel.getStyle().set("gap", "var(--lumo-space-m)");
+
+        Optional<BodyCompositionMeasurement> latest = nutritionService.latestBodyComposition(patient.getId());
+        if (latest.isEmpty()) {
+            panel.add(new Span(getTranslation("bodycomp.none")));
+            return panel;
+        }
+        BodyCompositionMeasurement c = latest.get();
+        Grid<MetricsTable.Row> grid = MetricsTable.create(getTranslation("nutrition.metric"));
+        grid.setItems(
+                new MetricsTable.Row(getTranslation("bodycomp.fat"), unit(c.getBodyFatPercent(), "%")),
+                new MetricsTable.Row(getTranslation("bodycomp.muscle"), unit(c.getSkeletalMusclePercent(), "%")),
+                new MetricsTable.Row(getTranslation("bodycomp.bone"), unit(c.getBoneDensity(), "g/cm²")),
+                new MetricsTable.Row(getTranslation("bodycomp.phase"), unit(c.getPhaseAngle(), "°")),
+                new MetricsTable.Row(getTranslation("bodycomp.measured"), UiFormat.date(c.getMeasuredOn())));
+        grid.setWidth("32em");
+        panel.add(grid);
+
+        List<BodyCompositionMeasurement> history = nutritionService.bodyCompositionHistory(patient.getId());
+        List<TrendChart.Series> series = new ArrayList<>();
+        List<TrendChart.Point> fat = compPoints(history, BodyCompositionMeasurement::getBodyFatPercent);
+        List<TrendChart.Point> muscle = compPoints(history, BodyCompositionMeasurement::getSkeletalMusclePercent);
+        if (!fat.isEmpty()) {
+            series.add(new TrendChart.Series(getTranslation("bodycomp.fat"), fat));
+        }
+        if (!muscle.isEmpty()) {
+            series.add(new TrendChart.Series(getTranslation("bodycomp.muscle"), muscle));
+        }
+        if (!series.isEmpty()) {
+            panel.add(new TrendChart(series, "%"));
+        }
+        return panel;
+    }
+
+    private static String unit(Double value, String suffix) {
+        return value == null ? UiFormat.EMPTY : UiFormat.number(value) + " " + suffix;
+    }
+
+    private static List<TrendChart.Point> compPoints(List<BodyCompositionMeasurement> history,
+                                                     Function<BodyCompositionMeasurement, Double> getter) {
+        return history.stream()
+                .filter(m -> getter.apply(m) != null)
+                .map(m -> new TrendChart.Point(
+                        m.getMeasuredOn().atStartOfDay(ZoneId.systemDefault()).toInstant(), getter.apply(m)))
+                .toList();
     }
 
     /** Wraps a section's content in an open collapsible panel, matching the Energy tab's accordions. */
@@ -238,12 +304,20 @@ public class NutritionView extends VerticalLayout implements HasDynamicTitle {
                 new MetricsTable.Row(getTranslation("nutrition.row.usualweight"), UiFormat.number(patient.getUsualWeightKg()) + " kg"),
                 temperatureRow(patient),
                 deliveryRow(patient),
-                new MetricsTable.Row(getTranslation("nutrition.row.bmi"), UiFormat.number(m.bmi()), m.bmi()),
+                bmiRow(patient, m),
                 new MetricsTable.Row(getTranslation("nutrition.row.ibw"), UiFormat.number(m.idealBodyWeightKg()) + " kg"),
                 new MetricsTable.Row(getTranslation("nutrition.row.abw"), UiFormat.number(m.adjustedBodyWeightKg()) + " kg"),
                 new MetricsTable.Row(getTranslation("nutrition.row.weightloss"), UiFormat.number(m.weightLossPercent()) + " %"));
         grid.setWidth("32em");
         return grid;
+    }
+
+    /** BMI row, annotated with a {@code *} marker and tooltip when the clinician flagged the BMI as misleading. */
+    private MetricsTable.Row bmiRow(Patient patient, NutritionMetrics m) {
+        boolean misleading = patient.isMisleadingBmi();
+        String value = UiFormat.number(m.bmi()) + (misleading ? " *" : "");
+        return new MetricsTable.Row(getTranslation("nutrition.row.bmi"), value, m.bmi(),
+                misleading ? getTranslation("bmi.misleading.tooltip") : null);
     }
 
     private VerticalLayout riskPanel(Patient patient) {

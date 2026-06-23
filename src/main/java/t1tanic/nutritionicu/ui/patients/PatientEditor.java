@@ -35,6 +35,7 @@ public class PatientEditor extends Dialog {
     private final DatePicker admissionDate = new DatePicker(I18n.t("stay.admission"));
     private final DatePicker dischargeDate = new DatePicker(I18n.t("stay.discharge"));
     private final Checkbox monitored = new Checkbox(I18n.t("editor.monitored"));
+    private final Checkbox misleadingBmi = new Checkbox(I18n.t("editor.misleadingbmi"));
 
     public PatientEditor(Patient patient, PatientService patientService, Runnable onSaved) {
         boolean creating = patient == null;
@@ -63,14 +64,18 @@ public class PatientEditor extends Dialog {
             admissionDate.setValue(patient.getAdmissionDate());
             dischargeDate.setValue(patient.getDischargeDate());
             monitored.setValue(patient.isMonitored());
+            misleadingBmi.setValue(patient.isMisleadingBmi());
         }
+
+        misleadingBmi.setHelperText(I18n.t("editor.misleadingbmi.helper"));
 
         FormLayout form = new FormLayout(
                 nhc, fullName, birthDate, sex, healthCardId, socialSecurityNumber, admissionDiagnosis,
-                admissionDate, dischargeDate, monitored);
+                admissionDate, dischargeDate, monitored, misleadingBmi);
         form.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1),
                 new FormLayout.ResponsiveStep("320px", 2));
         form.setColspan(monitored, 2);
+        form.setColspan(misleadingBmi, 2);
         add(form);
 
         Button cancel = new Button(I18n.t("common.cancel"), e -> close());
@@ -90,7 +95,8 @@ public class PatientEditor extends Dialog {
                 admissionDiagnosis.getValue(),
                 monitored.getValue(),
                 admissionDate.getValue(),
-                dischargeDate.getValue());
+                dischargeDate.getValue(),
+                misleadingBmi.getValue());
         try {
             if (patient == null) {
                 patientService.create(details);

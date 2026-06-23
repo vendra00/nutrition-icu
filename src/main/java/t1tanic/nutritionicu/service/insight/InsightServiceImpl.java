@@ -4,6 +4,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
@@ -11,11 +12,13 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
 import org.springframework.stereotype.Service;
 import t1tanic.nutritionicu.dto.KnowledgeRef;
 import t1tanic.nutritionicu.dto.PatientInsight;
 import t1tanic.nutritionicu.dto.PatientOverview;
 import t1tanic.nutritionicu.model.AiInsight;
+import t1tanic.nutritionicu.model.BodyCompositionMeasurement;
 import t1tanic.nutritionicu.model.EnergyAssessment;
 import t1tanic.nutritionicu.model.LabResult;
 import t1tanic.nutritionicu.model.NutritionDelivery;
@@ -28,6 +31,7 @@ import t1tanic.nutritionicu.repo.AiInsightRepository;
 import t1tanic.nutritionicu.service.lab.LabResultService;
 import t1tanic.nutritionicu.service.nutrition.EnergyAssessmentService;
 import t1tanic.nutritionicu.service.nutrition.NutritionDeliveryService;
+import t1tanic.nutritionicu.service.nutrition.NutritionService;
 import t1tanic.nutritionicu.service.patient.PatientOverviewService;
 import t1tanic.nutritionicu.service.patient.PatientService;
 
@@ -72,24 +76,29 @@ public class InsightServiceImpl implements InsightService {
             reports are directly comparable across patients and runs.
 
             ## Summary
-            One or two sentences: the patient (age, sex, admission diagnosis, BMI, NUTRIC) and the headline
-            nutritional issue.
+            One or two sentences: the patient (age, sex, admission diagnosis, BMI, NUTRIC) and the headline \
+            nutritional issue. Note skeletal-muscle status (low or falling muscle mass / sarcopenia), and when \
+            BMI is flagged misleading, judge nutritional status from body composition rather than BMI.
 
             ## Key parameters
             A Markdown table with EXACTLY these four columns, in this order:
             Parameter | Latest value | Trend | Interpretation
             Include one row for each of the following that is PRESENT in the data, in this order: BMI, \
-            Weight change, NUTRIC, Energy target, Feed delivery %, Glucose, CRP, Procalcitonin, Albumin, \
+            Weight change, Body fat %, Skeletal muscle %, NUTRIC, Energy target, Feed delivery %, Glucose, \
+            CRP, Procalcitonin, Albumin, \
             Prealbumin, Total protein, Urea, Phosphate, Potassium, Magnesium, Sodium, Triglycerides, \
             Lactate. Omit a row only when that parameter is absent from the data. "Trend" is one of up, \
             down, stable or n/a. Keep numbers and units exactly as given; never invent values.
 
             ## Likely nutritional concerns
-            3-6 bullet points.
+            3-6 bullet points; call out muscle wasting / sarcopenia when skeletal muscle is low or falling, \
+            and relate the concerns to the admission diagnosis.
 
             ## Suggested actions
             3-6 concise bullet points grounded in ESPEN/ASPEN ICU principles, with per-kg energy/protein \
-            targets where appropriate. When reference material is provided, cite the document by name.
+            targets where appropriate, tailored to the admission diagnosis and to muscle-mass status \
+            (escalate protein toward the upper ICU range when skeletal muscle is low or falling). When \
+            reference material is provided, cite the document by name.
 
             ## Cautions & what to verify
             3-6 bullet points; explicitly flag refeeding risk when phosphate, potassium or magnesium are \
@@ -132,6 +141,7 @@ public class InsightServiceImpl implements InsightService {
             Albumin initial -> latest (g/dL)
             Prealbumin latest (mg/dL)
             Weight initial -> latest (kg)
+            Skeletal muscle initial -> latest (%)
             Outcome
             Fill each cell only from the data provided. Where a value is not present write "N/A". Put no \
             commentary inside the table.
@@ -162,13 +172,14 @@ public class InsightServiceImpl implements InsightService {
     private final PatientOverviewService overviewService;
     private final EnergyAssessmentService energyService;
     private final NutritionDeliveryService deliveryService;
+    private final NutritionService nutritionService;
     private final LabResultService labService;
 
     public InsightServiceImpl(AnthropicClient client, KnowledgeBaseService knowledgeBase,
                               PatientCaseService patientCaseService, AiInsightRepository insightRepository,
                               PatientService patientService, PatientOverviewService overviewService,
                               EnergyAssessmentService energyService, NutritionDeliveryService deliveryService,
-                              LabResultService labService) {
+                              NutritionService nutritionService, LabResultService labService) {
         this.client = client;
         this.knowledgeBase = knowledgeBase;
         this.patientCaseService = patientCaseService;
@@ -177,6 +188,7 @@ public class InsightServiceImpl implements InsightService {
         this.overviewService = overviewService;
         this.energyService = energyService;
         this.deliveryService = deliveryService;
+        this.nutritionService = nutritionService;
         this.labService = labService;
     }
 
@@ -332,6 +344,10 @@ public class InsightServiceImpl implements InsightService {
         sb.append("- BMI: ").append(num(a.bmi())).append("; ideal BW: ").append(num(a.idealBodyWeightKg()))
                 .append(" kg; adjusted BW: ").append(num(a.adjustedBodyWeightKg())).append(" kg\n");
         sb.append("- Weight loss: ").append(num(a.weightLossPercent())).append(" %\n");
+        if (a.misleadingBmi()) {
+            sb.append("- NOTE: a clinician flagged BMI as MISLEADING for this patient (BMI does not reflect "
+                    + "body composition, e.g. high muscle mass). Weight the body-composition data above BMI.\n");
+        }
         if (a.latestTemperatureC() != null) {
             sb.append("- Latest temperature: ").append(num(a.latestTemperatureC())).append(" C");
             if (a.latestTemperatureDate() != null) {
@@ -339,6 +355,8 @@ public class InsightServiceImpl implements InsightService {
             }
             sb.append('\n');
         }
+
+        appendBodyComposition(sb, patientId);
 
         PatientOverview.Risk risk = overview.risk();
         sb.append("\nNUTRITIONAL RISK (NUTRIC)\n");
@@ -357,6 +375,53 @@ public class InsightServiceImpl implements InsightService {
         appendDelivery(sb, patientId);
         appendLabs(sb, patientId);
         return sb.toString();
+    }
+
+    private void appendBodyComposition(StringBuilder sb, Long patientId) {
+        List<BodyCompositionMeasurement> history = nutritionService.bodyCompositionHistory(patientId);
+        if (history.isEmpty()) {
+            return;
+        }
+        BodyCompositionMeasurement latest = history.get(history.size() - 1);
+        sb.append("\nBODY COMPOSITION (bioimpedance/DXA; objective context BMI can miss)\n");
+        sb.append("- Latest (").append(latest.getMeasuredOn().format(DAY)).append("): body fat ")
+                .append(num(latest.getBodyFatPercent())).append(" %; skeletal muscle ")
+                .append(num(latest.getSkeletalMusclePercent())).append(" %; bone density ")
+                .append(num(latest.getBoneDensity())).append(" g/cm2; phase angle ")
+                .append(num(latest.getPhaseAngle())).append(" deg\n");
+        appendCompTrend(sb, "Skeletal muscle", history, BodyCompositionMeasurement::getSkeletalMusclePercent);
+        appendCompTrend(sb, "Body fat", history, BodyCompositionMeasurement::getBodyFatPercent);
+        appendCompTrend(sb, "Phase angle", history, BodyCompositionMeasurement::getPhaseAngle);
+    }
+
+    /** First-to-latest change of one body-composition metric; flags muscle-mass loss explicitly. */
+    private void appendCompTrend(StringBuilder sb, String label, List<BodyCompositionMeasurement> history,
+                                 Function<BodyCompositionMeasurement, Double> getter) {
+        BodyCompositionMeasurement first = null;
+        BodyCompositionMeasurement last = null;
+        for (BodyCompositionMeasurement m : history) {
+            if (getter.apply(m) != null) {
+                if (first == null) {
+                    first = m;
+                }
+                last = m;
+            }
+        }
+        if (first == null || first == last) {
+            return;
+        }
+        double delta = getter.apply(last) - getter.apply(first);
+        long days = ChronoUnit.DAYS.between(first.getMeasuredOn(), last.getMeasuredOn());
+        sb.append("- ").append(label).append(": ").append(num(getter.apply(first))).append(" -> ")
+                .append(num(getter.apply(last)));
+        if (days > 0) {
+            sb.append(" over ").append(days).append(" days");
+        }
+        sb.append(" (change ").append(String.format(Locale.US, "%+.1f", delta)).append(')');
+        if ("Skeletal muscle".equals(label) && delta < 0) {
+            sb.append(" — MUSCLE MASS LOSS");
+        }
+        sb.append('\n');
     }
 
     private void appendEnergy(StringBuilder sb, Long patientId) {

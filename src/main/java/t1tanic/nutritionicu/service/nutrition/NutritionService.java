@@ -6,6 +6,7 @@ import java.util.Optional;
 import org.springframework.security.access.prepost.PreAuthorize;
 import t1tanic.nutritionicu.dto.NutricScore;
 import t1tanic.nutritionicu.dto.NutritionMetrics;
+import t1tanic.nutritionicu.model.BodyCompositionMeasurement;
 import t1tanic.nutritionicu.model.NutritionRiskAssessment;
 import t1tanic.nutritionicu.model.Patient;
 import t1tanic.nutritionicu.model.TemperatureMeasurement;
@@ -51,6 +52,21 @@ public interface NutritionService {
 
     /** The patient's most recent temperature reading, if any. */
     Optional<TemperatureMeasurement> latestTemperature(Long patientId);
+
+    /** Records (or updates) the patient's body-composition reading for a date. Any field may be null. */
+    BodyCompositionMeasurement recordBodyComposition(Long patientId, LocalDate date, Double bodyFatPercent,
+                                                     Double skeletalMusclePercent, Double boneDensity,
+                                                     Double phaseAngle);
+
+    /** Removes a body-composition entry. Admin only. */
+    @PreAuthorize("hasRole('ADMIN')")
+    void deleteBodyComposition(Long bodyCompositionMeasurementId);
+
+    /** A patient's body-composition history, oldest first. */
+    List<BodyCompositionMeasurement> bodyCompositionHistory(Long patientId);
+
+    /** The patient's most recent body-composition reading, if any. */
+    Optional<BodyCompositionMeasurement> latestBodyComposition(Long patientId);
 
     /** Computes the NUTRIC score from the banded severity inputs (IL-6 band optional). */
     NutricScore computeNutric(AgeBand age, ApacheBand apache, SofaBand sofa,

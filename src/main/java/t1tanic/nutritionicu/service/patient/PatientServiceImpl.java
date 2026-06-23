@@ -69,6 +69,7 @@ public class PatientServiceImpl implements PatientService {
         patient.setMonitored(details.monitored());
         patient.setAdmissionDate(details.admissionDate());
         patient.setDischargeDate(details.dischargeDate());
+        patient.setMisleadingBmi(details.misleadingBmi());
     }
 
     private static String requireNhc(PatientDetails details) {

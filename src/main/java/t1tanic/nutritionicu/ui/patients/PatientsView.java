@@ -61,7 +61,7 @@ public class PatientsView extends VerticalLayout implements HasDynamicTitle {
         grid.addColumn(this::sexText).setHeader(getTranslation("patients.col.sex")).setAutoWidth(true);
         grid.addColumn(p -> UiFormat.number(p.getCurrentWeightKg()))
                 .setHeader(getTranslation("patients.col.weight")).setAutoWidth(true);
-        grid.addComponentColumn(p -> BmiBadge.ofNullable(nutritionService.metricsFor(p).bmi()))
+        grid.addComponentColumn(p -> BmiBadge.ofNullable(nutritionService.metricsFor(p).bmi(), p.isMisleadingBmi()))
                 .setHeader(getTranslation("patients.col.bmi")).setAutoWidth(true);
         grid.addComponentColumn(this::actions).setHeader("").setAutoWidth(true).setFlexGrow(0);
         grid.addThemeVariants(GridVariant.LUMO_WRAP_CELL_CONTENT);

@@ -9,6 +9,7 @@ import java.util.Locale;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import t1tanic.nutritionicu.model.BodyCompositionMeasurement;
 import t1tanic.nutritionicu.model.LabResult;
 import t1tanic.nutritionicu.model.NutritionRiskAssessment;
 import t1tanic.nutritionicu.model.Patient;
@@ -245,10 +246,38 @@ public class PatientCaseService {
         if (weight != null) {
             traj.add(weight);
         }
+        String bodyComp = bodyCompTrajectory(p.getId());
+        if (bodyComp != null) {
+            traj.add(bodyComp);
+        }
         if (!traj.isEmpty()) {
             sb.append("; ").append(String.join("; ", traj));
         }
         return sb.toString();
+    }
+
+    /** Skeletal-muscle first->latest trajectory for the archived course, flagging muscle loss. */
+    private String bodyCompTrajectory(Long patientId) {
+        List<BodyCompositionMeasurement> history = nutritionService.bodyCompositionHistory(patientId);
+        BodyCompositionMeasurement first = null;
+        BodyCompositionMeasurement last = null;
+        for (BodyCompositionMeasurement m : history) {
+            if (m.getSkeletalMusclePercent() != null) {
+                if (first == null) {
+                    first = m;
+                }
+                last = m;
+            }
+        }
+        if (first == null) {
+            return null;
+        }
+        if (first == last) {
+            return "skeletal muscle " + num(first.getSkeletalMusclePercent()) + " %";
+        }
+        String trend = "skeletal muscle " + num(first.getSkeletalMusclePercent()) + "->"
+                + num(last.getSkeletalMusclePercent()) + " %";
+        return last.getSkeletalMusclePercent() < first.getSkeletalMusclePercent() ? trend + " (muscle loss)" : trend;
     }
 
     private void addTrajectory(List<String> out, Long patientId, String code, String label) {

@@ -19,5 +19,6 @@ public record PatientDetails(
         AdmissionDiagnosis admissionDiagnosis,
         boolean monitored,
         LocalDate admissionDate,
-        LocalDate dischargeDate) {
+        LocalDate dischargeDate,
+        boolean misleadingBmi) {
 }

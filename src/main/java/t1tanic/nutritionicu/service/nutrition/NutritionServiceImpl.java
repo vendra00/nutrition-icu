@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import t1tanic.nutritionicu.dto.NutricScore;
 import t1tanic.nutritionicu.dto.NutritionMetrics;
+import t1tanic.nutritionicu.model.BodyCompositionMeasurement;
 import t1tanic.nutritionicu.model.NutritionRiskAssessment;
 import t1tanic.nutritionicu.model.Patient;
 import t1tanic.nutritionicu.model.TemperatureMeasurement;
@@ -19,6 +20,7 @@ import t1tanic.nutritionicu.model.enums.Il6Band;
 import t1tanic.nutritionicu.model.enums.NutricBand;
 import t1tanic.nutritionicu.model.enums.Sex;
 import t1tanic.nutritionicu.model.enums.SofaBand;
+import t1tanic.nutritionicu.repo.BodyCompositionMeasurementRepository;
 import t1tanic.nutritionicu.repo.NutritionRiskAssessmentRepository;
 import t1tanic.nutritionicu.repo.PatientRepository;
 import t1tanic.nutritionicu.repo.TemperatureMeasurementRepository;
@@ -36,15 +38,18 @@ public class NutritionServiceImpl implements NutritionService {
     private final PatientRepository patientRepository;
     private final WeightMeasurementRepository weightRepository;
     private final TemperatureMeasurementRepository temperatureRepository;
+    private final BodyCompositionMeasurementRepository bodyCompositionRepository;
     private final NutritionRiskAssessmentRepository riskRepository;
 
     public NutritionServiceImpl(PatientRepository patientRepository,
                                 WeightMeasurementRepository weightRepository,
                                 TemperatureMeasurementRepository temperatureRepository,
+                                BodyCompositionMeasurementRepository bodyCompositionRepository,
                                 NutritionRiskAssessmentRepository riskRepository) {
         this.patientRepository = patientRepository;
         this.weightRepository = weightRepository;
         this.temperatureRepository = temperatureRepository;
+        this.bodyCompositionRepository = bodyCompositionRepository;
         this.riskRepository = riskRepository;
     }
 
@@ -129,6 +134,41 @@ public class NutritionServiceImpl implements NutritionService {
     @Transactional(readOnly = true)
     public Optional<TemperatureMeasurement> latestTemperature(Long patientId) {
         return temperatureRepository.findTopByPatientIdOrderByMeasuredOnDesc(patientId);
+    }
+
+    @Override
+    @Transactional
+    public BodyCompositionMeasurement recordBodyComposition(Long patientId, LocalDate date, Double bodyFatPercent,
+                                                            Double skeletalMusclePercent, Double boneDensity,
+                                                            Double phaseAngle) {
+        Patient patient = patient(patientId);
+        BodyCompositionMeasurement measurement = bodyCompositionRepository
+                .findByPatientIdAndMeasuredOn(patientId, date)
+                .orElseGet(() -> new BodyCompositionMeasurement(patient, date));
+        measurement.setBodyFatPercent(bodyFatPercent);
+        measurement.setSkeletalMusclePercent(skeletalMusclePercent);
+        measurement.setBoneDensity(boneDensity);
+        measurement.setPhaseAngle(phaseAngle);
+        return bodyCompositionRepository.save(measurement);
+    }
+
+    @Override
+    @Transactional
+    public void deleteBodyComposition(Long bodyCompositionMeasurementId) {
+        bodyCompositionRepository.findById(bodyCompositionMeasurementId)
+                .ifPresent(bodyCompositionRepository::delete);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<BodyCompositionMeasurement> bodyCompositionHistory(Long patientId) {
+        return bodyCompositionRepository.findByPatientIdOrderByMeasuredOnAsc(patientId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<BodyCompositionMeasurement> latestBodyComposition(Long patientId) {
+        return bodyCompositionRepository.findTopByPatientIdOrderByMeasuredOnDesc(patientId);
     }
 
     @Override

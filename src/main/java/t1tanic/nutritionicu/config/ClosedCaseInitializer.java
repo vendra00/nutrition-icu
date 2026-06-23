@@ -146,6 +146,17 @@ public class ClosedCaseInitializer implements ApplicationRunner {
         double weightStart = round1(bmi * 2.89); // assumes ~1.70 m
         double weightEnd = round1(weightStart * (1 - rangeDouble(rnd, 0.04, 0.10)));
 
+        // Body composition: muscle wastes over the stay (more with longer stay / worse outcome); fat is
+        // relatively preserved; bioimpedance phase angle falls. Lean mass and phase angle prognosticate.
+        double muscleStart = (sex == Sex.MALE ? 43 : 35) + rangeDouble(rnd, -2, 3);
+        double muscleLoss = Math.min(muscleStart - 24,
+                los * 0.20 + (survived ? rangeDouble(rnd, 0, 2) : rangeDouble(rnd, 3, 6)));
+        double muscleEnd = muscleStart - muscleLoss;
+        double fatStart = Math.max(8, (sex == Sex.MALE ? 16 : 26) + (bmi - 22) * 0.9 + rangeDouble(rnd, -2, 2));
+        double fatEnd = fatStart + rangeDouble(rnd, 0.5, 2.5);
+        double phaseStart = rangeDouble(rnd, 5.0, 6.6);
+        double phaseEnd = Math.max(2.5, phaseStart - (survived ? rangeDouble(rnd, 0.3, 0.8) : rangeDouble(rnd, 0.9, 1.7)));
+
         StringBuilder sb = new StringBuilder();
         sb.append("Diagnosis: ").append(a.diagnosis().label()).append("; ");
         sb.append(String.format(Locale.US, "Age %d, %s; BMI %.1f; NUTRIC %d/%d (%s); SOFA %s; ",
@@ -155,6 +166,9 @@ public class ClosedCaseInitializer implements ApplicationRunner {
         sb.append(String.format(Locale.US,
                 "CRP %.0f->%.0f mg/dL, albumin %.1f->%.1f g/dL, prealbumin %d->%d mg/dL; weight %.1f->%.1f kg.",
                 crpStart, crpEnd, albStart, albEnd, preStart, preEnd, weightStart, weightEnd));
+        sb.append(String.format(Locale.US,
+                " Skeletal muscle %.0f->%.0f%% (muscle loss), body fat %.0f->%.0f%%, phase angle %.1f->%.1f deg.",
+                muscleStart, muscleEnd, fatStart, fatEnd, phaseStart, phaseEnd));
         if (a.refeeding()) {
             sb.append(String.format(Locale.US,
                     " Phosphate dipped to %.1f mg/dL on day 3 (refeeding), corrected with replacement.",

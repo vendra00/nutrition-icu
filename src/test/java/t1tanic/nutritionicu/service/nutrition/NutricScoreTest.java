@@ -14,7 +14,7 @@ import t1tanic.nutritionicu.model.enums.SofaBand;
 /** Verifies NUTRIC scoring and the low/high-risk thresholds (repos unused here). */
 class NutricScoreTest {
 
-    private final NutritionService service = new NutritionServiceImpl(null, null, null, null);
+    private final NutritionService service = new NutritionServiceImpl(null, null, null, null, null);
 
     @Test
     void lowRiskWhenAllBenign() {

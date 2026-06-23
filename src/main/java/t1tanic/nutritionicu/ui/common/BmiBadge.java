@@ -55,8 +55,24 @@ public final class BmiBadge {
      * Formats the value itself, so callers need not.
      */
     public static Span ofNullable(Double bmi) {
-        String text = UiFormat.number(bmi);
-        return bmi == null ? new Span(text) : of(bmi, text);
+        return ofNullable(bmi, false);
+    }
+
+    /**
+     * A coloured BMI pill that, when {@code misleading} is set, appends a {@code *} marker and a tooltip so
+     * the reader knows a clinician flagged the BMI as not reflecting body composition (e.g. high muscle mass).
+     */
+    public static Span ofNullable(Double bmi, boolean misleading) {
+        String text = UiFormat.number(bmi) + (misleading ? " *" : "");
+        if (bmi == null) {
+            return new Span(text);
+        }
+        Span pill = of(bmi, text);
+        if (misleading) {
+            pill.getElement().setAttribute("title", I18n.t("bmi.misleading.tooltip"));
+            pill.getStyle().set("cursor", "help");
+        }
+        return pill;
     }
 
     /** A coloured pill showing {@code text} (the formatted BMI), banded by {@code bmi}. */
