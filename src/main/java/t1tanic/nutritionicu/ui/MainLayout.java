@@ -19,6 +19,7 @@ import com.vaadin.flow.theme.lumo.LumoUtility;
 import jakarta.annotation.security.PermitAll;
 import java.util.Locale;
 import t1tanic.nutritionicu.config.LocalePreference;
+import t1tanic.nutritionicu.ui.admin.TranslationsView;
 import t1tanic.nutritionicu.ui.alerts.AlertsView;
 import t1tanic.nutritionicu.ui.analytics.AnalyticsView;
 import t1tanic.nutritionicu.ui.dashboard.DashboardView;
@@ -83,6 +84,9 @@ public class MainLayout extends AppLayout {
         nav.addItem(new SideNavItem(getTranslation("nav.doctors"), DoctorsView.class, VaadinIcon.DOCTOR.create()));
         nav.addItem(new SideNavItem(getTranslation("nav.analytics"), AnalyticsView.class, VaadinIcon.CHART.create()));
         nav.addItem(new SideNavItem(getTranslation("nav.insights"), InsightsView.class, VaadinIcon.LIGHTBULB.create()));
+        if (authContext.hasRole("ADMIN")) {
+            nav.addItem(new SideNavItem(getTranslation("nav.translations"), TranslationsView.class, VaadinIcon.GLOBE.create()));
+        }
         return nav;
     }
 
