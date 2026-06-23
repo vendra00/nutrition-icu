@@ -10,6 +10,7 @@ import java.time.Period;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import t1tanic.nutritionicu.model.enums.AdmissionDiagnosis;
 import t1tanic.nutritionicu.model.enums.Sex;
 
 /**
@@ -43,6 +44,11 @@ public class Patient extends BaseEntity {
 
     @Column(name = "social_security_number")
     private String socialSecurityNumber;
+
+    /** ICU admission diagnosis category ("motivo de ingreso") — relevant to the expected nutrition course. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "admission_diagnosis", length = 40)
+    private AdmissionDiagnosis admissionDiagnosis;
 
     /**
      * Whether the patient is currently admitted and under active monitoring (e.g. in the ICU).

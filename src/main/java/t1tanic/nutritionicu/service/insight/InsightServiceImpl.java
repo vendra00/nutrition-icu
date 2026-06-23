@@ -72,7 +72,8 @@ public class InsightServiceImpl implements InsightService {
             reports are directly comparable across patients and runs.
 
             ## Summary
-            One or two sentences: the patient (age, sex, BMI, NUTRIC) and the headline nutritional issue.
+            One or two sentences: the patient (age, sex, admission diagnosis, BMI, NUTRIC) and the headline
+            nutritional issue.
 
             ## Key parameters
             A Markdown table with EXACTLY these four columns, in this order:
@@ -115,13 +116,14 @@ public class InsightServiceImpl implements InsightService {
             identical EVERY time so reports are directly comparable.
 
             ## Summary
-            One or two sentences: the index patient (age, sex, BMI, NUTRIC, SOFA) and how many archived \
-            cases were compared.
+            One or two sentences: the index patient (admission diagnosis, age, sex, BMI, NUTRIC, SOFA) and \
+            how many archived cases were compared, noting whether they share the same diagnosis.
 
             ## Comparison table
             A single Markdown table. The first column is "Parameter"; the second column is "Index patient"; \
             then ONE column per archived case headed by its CASE-id, in the order the cases are given. \
             Include EXACTLY these rows, in this order, and NO others:
+            Diagnosis
             Age / Sex
             BMI (kg/m2)
             NUTRIC (score/max)
@@ -312,6 +314,8 @@ public class InsightServiceImpl implements InsightService {
         PatientOverview.Identity id = overview.identity();
         sb.append("PATIENT (de-identified)\n");
         sb.append("- Age: ").append(numInt(id.ageYears())).append(" years; sex: ").append(id.sex()).append('\n');
+        patientService.findById(patientId).map(Patient::getAdmissionDiagnosis)
+                .ifPresent(dx -> sb.append("- Admission diagnosis: ").append(dx.label()).append('\n'));
         sb.append("- Monitored: ").append(id.monitored() ? "yes" : "no");
         if (id.admissionDate() != null) {
             sb.append("; admitted ").append(id.admissionDate().format(DAY));

@@ -12,6 +12,7 @@ import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.textfield.TextField;
 import t1tanic.nutritionicu.dto.PatientDetails;
 import t1tanic.nutritionicu.model.Patient;
+import t1tanic.nutritionicu.model.enums.AdmissionDiagnosis;
 import t1tanic.nutritionicu.model.enums.Sex;
 import t1tanic.nutritionicu.service.patient.PatientService;
 import t1tanic.nutritionicu.ui.common.UiFormat;
@@ -29,6 +30,7 @@ public class PatientEditor extends Dialog {
     private final ComboBox<Sex> sex = new ComboBox<>("Sex");
     private final TextField healthCardId = new TextField("Health-card id (CIP)");
     private final TextField socialSecurityNumber = new TextField("Social security number");
+    private final ComboBox<AdmissionDiagnosis> admissionDiagnosis = new ComboBox<>("Admission diagnosis");
     private final Checkbox monitored = new Checkbox("Actively monitored");
 
     public PatientEditor(Patient patient, PatientService patientService, Runnable onSaved) {
@@ -41,6 +43,9 @@ public class PatientEditor extends Dialog {
         sex.setItems(Sex.values());
         sex.setItemLabelGenerator(PatientEditor::sexLabel);
         sex.setValue(Sex.UNKNOWN);
+        admissionDiagnosis.setItems(AdmissionDiagnosis.values());
+        admissionDiagnosis.setItemLabelGenerator(AdmissionDiagnosis::label);
+        admissionDiagnosis.setClearButtonVisible(true);
 
         if (!creating) {
             nhc.setValue(nullToEmpty(patient.getMedicalRecordNumber()));
@@ -49,11 +54,12 @@ public class PatientEditor extends Dialog {
             sex.setValue(patient.getSex() == null ? Sex.UNKNOWN : patient.getSex());
             healthCardId.setValue(nullToEmpty(patient.getHealthCardId()));
             socialSecurityNumber.setValue(nullToEmpty(patient.getSocialSecurityNumber()));
+            admissionDiagnosis.setValue(patient.getAdmissionDiagnosis());
             monitored.setValue(patient.isMonitored());
         }
 
         FormLayout form = new FormLayout(
-                nhc, fullName, birthDate, sex, healthCardId, socialSecurityNumber, monitored);
+                nhc, fullName, birthDate, sex, healthCardId, socialSecurityNumber, admissionDiagnosis, monitored);
         form.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1),
                 new FormLayout.ResponsiveStep("320px", 2));
         form.setColspan(monitored, 2);
@@ -73,6 +79,7 @@ public class PatientEditor extends Dialog {
                 sex.getValue(),
                 emptyToNull(healthCardId.getValue()),
                 emptyToNull(socialSecurityNumber.getValue()),
+                admissionDiagnosis.getValue(),
                 monitored.getValue());
         try {
             if (patient == null) {

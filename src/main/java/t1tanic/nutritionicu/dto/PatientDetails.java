@@ -1,6 +1,7 @@
 package t1tanic.nutritionicu.dto;
 
 import java.time.LocalDate;
+import t1tanic.nutritionicu.model.enums.AdmissionDiagnosis;
 import t1tanic.nutritionicu.model.enums.Sex;
 
 /**
@@ -15,5 +16,6 @@ public record PatientDetails(
         Sex sex,
         String healthCardId,
         String socialSecurityNumber,
+        AdmissionDiagnosis admissionDiagnosis,
         boolean monitored) {
 }

@@ -76,6 +76,7 @@ public class PatientServiceImpl implements PatientService {
         patient.setSex(details.sex() == null ? Sex.UNKNOWN : details.sex());
         patient.setHealthCardId(details.healthCardId());
         patient.setSocialSecurityNumber(details.socialSecurityNumber());
+        patient.setAdmissionDiagnosis(details.admissionDiagnosis());
         patient.setMonitored(details.monitored());
     }
 

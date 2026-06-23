@@ -11,6 +11,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import t1tanic.nutritionicu.model.PatientCase;
+import t1tanic.nutritionicu.model.enums.AdmissionDiagnosis;
 import t1tanic.nutritionicu.model.enums.Sex;
 import t1tanic.nutritionicu.model.enums.SofaBand;
 import t1tanic.nutritionicu.repo.PatientCaseRepository;
@@ -31,59 +32,60 @@ public class ClosedCaseInitializer implements ApplicationRunner {
 
     private static final int TARGET = 100;
 
-    /** Clinical archetypes with plausible ranges, the typical nutrition course, and survival likelihood. */
+    /** One archetype per admission diagnosis (the unit's categories), with plausible ranges and course. */
     private static final List<Archetype> ARCHETYPES = List.of(
-            new Archetype("septic shock (intra-abdominal source)",
+            new Archetype(AdmissionDiagnosis.TBI, "isolated traumatic brain injury",
+                    "Early enteral feeding via NG tube, transitioned to PEG around day 10; 25 kcal/kg and "
+                            + "1.5 g/kg protein; prokinetics for gastroparesis; tight glycaemic control; "
+                            + "overfeeding avoided.",
+                    18, 70, 22, 29, 4, 7, new SofaBand[]{SofaBand.B6_9, SofaBand.GE_10}, 12, 32, 0.74,
+                    false, false),
+            new Archetype(AdmissionDiagnosis.TBI_POLYTRAUMA, "severe TBI with polytrauma",
+                    "Early high-protein enteral feeding (2.0 g/kg) once resuscitated; energy advanced "
+                            + "cautiously with raised intracranial pressure; multi-injury and transfusion support.",
+                    18, 55, 22, 28, 5, 8, new SofaBand[]{SofaBand.GE_10}, 16, 40, 0.64,
+                    false, false),
+            new Archetype(AdmissionDiagnosis.ACUTE_SPINAL_CORD_INJURY, "acute traumatic spinal cord injury",
+                    "Lower energy target (neurogenic reduction in expenditure) to avoid overfeeding; protein "
+                            + "1.5-2.0 g/kg; aggressive bowel regimen for neurogenic ileus; early enteral feeding.",
+                    18, 65, 21, 28, 4, 7, new SofaBand[]{SofaBand.B6_9, SofaBand.GE_10}, 18, 45, 0.82,
+                    false, false),
+            new Archetype(AdmissionDiagnosis.POLYTRAUMA_NO_SEVERE_TBI, "polytrauma without severe head injury",
+                    "Early enteral feeding from day 1; high-protein target (2.0 g/kg) reached day 4 with a "
+                            + "standard polymeric formula; early mobilisation.",
+                    18, 50, 21, 28, 3, 6, new SofaBand[]{SofaBand.B6_9, SofaBand.GE_10}, 8, 24, 0.86,
+                    false, false),
+            new Archetype(AdmissionDiagnosis.MAJOR_BURNS, "major burns",
+                    "Hypermetabolic course - very high energy (30-35 kcal/kg) and protein (2.0-2.2 g/kg) via "
+                            + "early enteral feeding; trace-element and vitamin supplementation.",
+                    20, 65, 22, 30, 5, 8, new SofaBand[]{SofaBand.B6_9, SofaBand.GE_10}, 22, 50, 0.76,
+                    false, false),
+            new Archetype(AdmissionDiagnosis.SEPTIC_SHOCK, "septic shock",
                     "Enteral nutrition started day 2 at 15 kcal/kg, advanced to 25 kcal/kg and 1.3 g/kg "
                             + "protein by day 5; prokinetics for high gastric residuals; insulin for stress "
                             + "hyperglycaemia.",
-                    55, 82, 22, 31, 6, 9, new SofaBand[]{SofaBand.B6_9, SofaBand.GE_10}, 10, 28, 0.70,
+                    50, 82, 22, 31, 6, 9, new SofaBand[]{SofaBand.B6_9, SofaBand.GE_10}, 10, 28, 0.68,
                     false, false),
-            new Archetype("polytrauma",
-                    "Early enteral feeding from day 1; high-protein target (2.0 g/kg) reached day 4 with a "
-                            + "standard polymeric formula; aggressive mobilisation.",
-                    18, 46, 21, 28, 3, 6, new SofaBand[]{SofaBand.B6_9, SofaBand.GE_10}, 7, 22, 0.86,
+            new Archetype(AdmissionDiagnosis.ACUTE_RESPIRATORY_FAILURE, "acute respiratory failure / ARDS",
+                    "Enteral feeding continued during prone positioning at 20 kcal/kg, protein 1.5 g/kg; "
+                            + "permissive underfeeding the first week then full target; early rehabilitation.",
+                    45, 80, 24, 34, 5, 8, new SofaBand[]{SofaBand.GE_10}, 14, 36, 0.64,
                     false, false),
-            new Archetype("major gastrointestinal surgery",
-                    "Feeding delayed by post-operative ileus; trophic EN day 3, full target by day 6; "
-                            + "supplemental parenteral nutrition days 4–7 to cover the energy deficit.",
-                    50, 78, 21, 30, 4, 7, new SofaBand[]{SofaBand.LT_6, SofaBand.B6_9}, 6, 18, 0.88,
+            new Archetype(AdmissionDiagnosis.COMPLEX_POSTOP, "complex postoperative course",
+                    "Feeding delayed by ileus/instability; trophic EN day 3, full target by day 6; "
+                            + "supplemental parenteral nutrition days 4-7 to cover the energy deficit.",
+                    50, 80, 22, 31, 4, 7, new SofaBand[]{SofaBand.LT_6, SofaBand.B6_9}, 8, 22, 0.84,
                     false, false),
-            new Archetype("severe acute pancreatitis",
-                    "Nasojejunal enteral feeding from day 2 with a lipid-restricted formula; advanced as "
-                            + "tolerated; glycaemic control optimised.",
-                    40, 66, 27, 36, 5, 8, new SofaBand[]{SofaBand.B6_9, SofaBand.GE_10}, 12, 30, 0.76,
-                    false, true),
-            new Archetype("ARDS / acute respiratory failure",
-                    "EN continued during prone positioning at 20 kcal/kg, protein 1.5 g/kg; permissive "
-                            + "underfeeding the first week then full target; early rehabilitation.",
-                    45, 76, 24, 34, 5, 8, new SofaBand[]{SofaBand.GE_10}, 14, 36, 0.64,
+            new Archetype(AdmissionDiagnosis.OTHER_NEUROLOGICAL, "other neurological emergency (stroke/encephalopathy)",
+                    "Dysphagia - enteral feeding via nasogastric tube with aspiration precautions; later PEG "
+                            + "or texture-modified oral trial; 25 kcal/kg, 1.3 g/kg protein.",
+                    40, 82, 22, 29, 4, 7, new SofaBand[]{SofaBand.B6_9, SofaBand.GE_10}, 10, 30, 0.70,
                     false, false),
-            new Archetype("refeeding syndrome on severe malnutrition",
-                    "Cautious start at 10 kcal/kg with phosphate, potassium and magnesium replacement plus "
-                            + "thiamine; energy advanced over 5 days under close monitoring.",
-                    52, 84, 14, 18, 6, 9, new SofaBand[]{SofaBand.B6_9, SofaBand.GE_10}, 10, 26, 0.69,
-                    true, false),
-            new Archetype("major burns",
-                    "Hypermetabolic course — very high energy (30–35 kcal/kg) and protein (2.0–2.2 g/kg) via "
-                            + "early enteral feeding; trace-element and vitamin supplementation.",
-                    25, 60, 22, 30, 5, 8, new SofaBand[]{SofaBand.B6_9, SofaBand.GE_10}, 20, 46, 0.78,
-                    false, false),
-            new Archetype("aspiration pneumonia with frailty",
-                    "Dysphagia — enteral feeding via nasogastric tube; protein-energy supplements; later "
-                            + "texture-modified oral trial.",
-                    75, 92, 17, 24, 6, 9, new SofaBand[]{SofaBand.B6_9, SofaBand.GE_10}, 8, 20, 0.55,
-                    false, false),
-            new Archetype("cardiogenic shock after cardiac surgery",
-                    "Feeding delayed by haemodynamic instability; trophic EN once stable on day 3; "
-                            + "fluid-restricted energy-dense formula.",
-                    60, 83, 24, 33, 5, 8, new SofaBand[]{SofaBand.GE_10}, 8, 24, 0.68,
-                    false, false),
-            new Archetype("traumatic brain injury",
-                    "Early enteral feeding via NG tube, transitioned to PEG on day 10; 25 kcal/kg and "
-                            + "1.5 g/kg protein; prokinetics for gastroparesis.",
-                    35, 72, 23, 30, 4, 7, new SofaBand[]{SofaBand.B6_9, SofaBand.GE_10}, 12, 32, 0.72,
-                    false, false));
+            new Archetype(AdmissionDiagnosis.OTHER_MEDICAL, "other medical critical illness (e.g. pancreatitis, decompensation)",
+                    "Cautious, malnutrition-aware enteral start advanced as tolerated; electrolytes monitored "
+                            + "for refeeding; lipid-restricted formula when hypertriglyceridaemic.",
+                    45, 85, 16, 30, 5, 9, new SofaBand[]{SofaBand.B6_9, SofaBand.GE_10}, 8, 26, 0.66,
+                    true, false));
 
     private final PatientCaseRepository caseRepository;
 
@@ -118,6 +120,7 @@ public class ClosedCaseInitializer implements ApplicationRunner {
         PatientCase c = new PatientCase();
         c.setCaseCode(String.format("CASE-S%03d", seq));
         c.setSourcePatientId(null);
+        c.setAdmissionDiagnosis(a.diagnosis());
         c.setAgeYears(age);
         c.setSex(sex);
         c.setBmi(bmi);
@@ -144,6 +147,7 @@ public class ClosedCaseInitializer implements ApplicationRunner {
         double weightEnd = round1(weightStart * (1 - rangeDouble(rnd, 0.04, 0.10)));
 
         StringBuilder sb = new StringBuilder();
+        sb.append("Diagnosis: ").append(a.diagnosis().label()).append("; ");
         sb.append(String.format(Locale.US, "Age %d, %s; BMI %.1f; NUTRIC %d/%d (%s); SOFA %s; ",
                 age, sex.name().toLowerCase(Locale.ROOT), bmi, nutric, nutricMax,
                 nutric >= 5 ? "high risk" : "low risk", sofa.name()));
@@ -166,9 +170,9 @@ public class ClosedCaseInitializer implements ApplicationRunner {
         return sb.toString();
     }
 
-    private record Archetype(String dx, String intervention, int ageLo, int ageHi, double bmiLo, double bmiHi,
-                             int nutricLo, int nutricHi, SofaBand[] sofas, int losLo, int losHi,
-                             double survival, boolean refeeding, boolean hyperTrig) {
+    private record Archetype(AdmissionDiagnosis diagnosis, String dx, String intervention, int ageLo, int ageHi,
+                             double bmiLo, double bmiHi, int nutricLo, int nutricHi, SofaBand[] sofas,
+                             int losLo, int losHi, double survival, boolean refeeding, boolean hyperTrig) {
     }
 
     private static int rangeInt(Random r, int lo, int hi) {

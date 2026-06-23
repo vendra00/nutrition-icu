@@ -14,6 +14,7 @@ import t1tanic.nutritionicu.model.NutritionRiskAssessment;
 import t1tanic.nutritionicu.model.Patient;
 import t1tanic.nutritionicu.model.PatientCase;
 import t1tanic.nutritionicu.model.WeightMeasurement;
+import t1tanic.nutritionicu.model.enums.AdmissionDiagnosis;
 import t1tanic.nutritionicu.model.enums.Sex;
 import t1tanic.nutritionicu.repo.PatientCaseRepository;
 import t1tanic.nutritionicu.service.lab.LabResultService;
@@ -32,6 +33,8 @@ public class PatientCaseService {
     private static final double BMI_SCALE = 6.0;
     private static final double NUTRIC_SCALE = 3.0;
     private static final double SOFA_SCALE = 2.0;
+    /** Squared-distance penalty added when two cases have a different admission diagnosis (prefers same). */
+    private static final double DIFFERENT_DIAGNOSIS_PENALTY = 3.0;
 
     /** Age half-window (years) for the indexed candidate pre-filter. */
     private static final int AGE_WINDOW = 25;
@@ -77,6 +80,7 @@ public class PatientCaseService {
 
         PatientCase c = caseRepository.findBySourcePatientId(patientId).orElseGet(PatientCase::new);
         c.setSourcePatientId(patientId);
+        c.setAdmissionDiagnosis(patient.getAdmissionDiagnosis());
         c.setAgeYears(f.age() == null ? null : (int) Math.round(f.age()));
         c.setSex(patient.getSex());
         c.setBmi(f.bmi());
@@ -156,7 +160,7 @@ public class PatientCaseService {
     // --- feature extraction & distance ---
 
     private record Features(Double age, Double bmi, Integer nutric, Integer nutricMax, Integer sofaOrdinal,
-                            String sofaLabel, Boolean highRisk) {
+                            String sofaLabel, Boolean highRisk, AdmissionDiagnosis diagnosis) {
         boolean comparable() {
             return age != null && bmi != null;
         }
@@ -175,13 +179,14 @@ public class PatientCaseService {
         Integer sofaOrdinal = risk.map(r -> r.getSofaBand() == null ? null : r.getSofaBand().ordinal()).orElse(null);
         String sofaLabel = risk.map(r -> r.getSofaBand() == null ? null : r.getSofaBand().name()).orElse(null);
         Boolean highRisk = risk.map(NutritionRiskAssessment::isHighRisk).orElse(null);
-        return new Features(age, bmi, nutric, nutricMax, sofaOrdinal, sofaLabel, highRisk);
+        return new Features(age, bmi, nutric, nutricMax, sofaOrdinal, sofaLabel, highRisk,
+                patient.getAdmissionDiagnosis());
     }
 
     private static Features caseFeatures(PatientCase c) {
         Double age = c.getAgeYears() == null ? null : c.getAgeYears().doubleValue();
         return new Features(age, c.getBmi(), c.getNutricScore(), c.getNutricMax(), c.getSofaOrdinal(),
-                c.getSofaBand(), c.getHighRisk());
+                c.getSofaBand(), c.getHighRisk(), c.getAdmissionDiagnosis());
     }
 
     private static double distance(Features a, Features b) {
@@ -191,6 +196,9 @@ public class PatientCaseService {
         }
         if (a.sofaOrdinal() != null && b.sofaOrdinal() != null) {
             d += sq((a.sofaOrdinal() - b.sofaOrdinal()) / SOFA_SCALE);
+        }
+        if (a.diagnosis() != null && b.diagnosis() != null && a.diagnosis() != b.diagnosis()) {
+            d += DIFFERENT_DIAGNOSIS_PENALTY; // prefer same-condition cases
         }
         return Math.sqrt(d);
     }
@@ -203,6 +211,9 @@ public class PatientCaseService {
 
     private String featuresLine(Patient p, Features f) {
         StringBuilder sb = new StringBuilder();
+        if (f.diagnosis() != null) {
+            sb.append("Diagnosis: ").append(f.diagnosis().label()).append("; ");
+        }
         sb.append("Age ").append(intOf(f.age())).append(", ").append(sexOf(p.getSex()));
         sb.append("; BMI ").append(num(f.bmi()));
         if (f.nutric() != null) {

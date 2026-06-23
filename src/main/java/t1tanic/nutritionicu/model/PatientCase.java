@@ -9,6 +9,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import t1tanic.nutritionicu.model.enums.AdmissionDiagnosis;
 import t1tanic.nutritionicu.model.enums.Sex;
 
 /**
@@ -25,6 +26,7 @@ import t1tanic.nutritionicu.model.enums.Sex;
         @Index(name = "idx_patient_case_age", columnList = "age_years"),
         @Index(name = "idx_patient_case_bmi", columnList = "bmi"),
         @Index(name = "idx_patient_case_nutric", columnList = "nutric_score"),
+        @Index(name = "idx_patient_case_diagnosis", columnList = "admission_diagnosis"),
         @Index(name = "idx_patient_case_source", columnList = "source_patient_id")
 })
 @Getter
@@ -46,6 +48,10 @@ public class PatientCase extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "sex", length = 16)
     private Sex sex;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "admission_diagnosis", length = 40)
+    private AdmissionDiagnosis admissionDiagnosis;
 
     @Column(name = "bmi")
     private Double bmi;
