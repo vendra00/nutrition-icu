@@ -50,26 +50,16 @@ public class TranslationAdminService {
                 .toList();
     }
 
-    @Transactional(readOnly = true)
-    public boolean exists(String key) {
-        return key != null && repository.existsByMsgKey(key.strip());
-    }
-
     /**
-     * Upserts a key's English and Spanish values, then reloads the cache. A blank value removes that
-     * language's row so the key falls back to English (Spanish) or to the raw key (English).
+     * Upserts an existing key's English and Spanish values, then reloads the cache. The screen only edits
+     * keys that already exist; a blank Spanish value removes that language's row so the key falls back to
+     * English (English itself is required, so a key can never be emptied to the raw identifier here).
      */
     @Transactional
     public void save(String key, String english, String spanish) {
         String trimmedKey = key.strip();
         upsert(EN, trimmedKey, english);
         upsert(ES, trimmedKey, spanish);
-        store.reload();
-    }
-
-    @Transactional
-    public void delete(String key) {
-        repository.deleteByMsgKey(key.strip());
         store.reload();
     }
 

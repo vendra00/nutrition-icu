@@ -11,9 +11,9 @@ import com.vaadin.flow.component.textfield.TextField;
 import t1tanic.nutritionicu.service.i18n.TranslationAdminService;
 
 /**
- * Add or edit a single translation key with its English and Spanish values. Pass {@code null} to create a
- * new key (the key field is editable and checked for collisions); pass an existing row to edit (the key is
- * read-only). Saving upserts via {@link TranslationAdminService} and refreshes the live cache.
+ * Edit one translation key's English and Spanish values. The key is read-only (keys come from the code, not
+ * the editor); saving upserts via {@link TranslationAdminService} and refreshes the live cache. English is
+ * required; clearing Spanish makes the key fall back to English rather than removing it.
  */
 public class TranslationEditorDialog extends Dialog {
 
@@ -22,53 +22,38 @@ public class TranslationEditorDialog extends Dialog {
     private final TextArea spanish = new TextArea();
 
     public TranslationEditorDialog(TranslationAdminService service,
-                                   TranslationAdminService.Row existing,
+                                   TranslationAdminService.Row row,
                                    Runnable onSaved) {
-        boolean creating = existing == null;
-        setHeaderTitle(getTranslation(creating ? "admin.tr.new.title" : "admin.tr.edit.title"));
+        setHeaderTitle(getTranslation("admin.tr.edit.title"));
         setWidth("640px");
 
         key.setLabel(getTranslation("admin.tr.key"));
         key.setWidthFull();
-        key.setReadOnly(!creating);
-        if (creating) {
-            key.setHelperText(getTranslation("admin.tr.keyhelper"));
-        }
+        key.setReadOnly(true);
+        key.setValue(row.key());
 
         english.setLabel(getTranslation("admin.tr.english"));
         english.setWidthFull();
+        english.setValue(row.english() == null ? "" : row.english());
+
         spanish.setLabel(getTranslation("admin.tr.spanish"));
         spanish.setWidthFull();
         spanish.setHelperText(getTranslation("admin.tr.eshelper"));
-
-        if (!creating) {
-            key.setValue(existing.key());
-            english.setValue(existing.english() == null ? "" : existing.english());
-            spanish.setValue(existing.spanish() == null ? "" : existing.spanish());
-        }
+        spanish.setValue(row.spanish() == null ? "" : row.spanish());
 
         FormLayout form = new FormLayout(key, english, spanish);
         form.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1));
         add(form);
 
         Button cancel = new Button(getTranslation("common.cancel"), e -> close());
-        Button save = new Button(getTranslation("common.save"), e -> save(service, creating, onSaved));
+        Button save = new Button(getTranslation("common.save"), e -> save(service, row.key(), onSaved));
         save.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         getFooter().add(cancel, save);
     }
 
-    private void save(TranslationAdminService service, boolean creating, Runnable onSaved) {
-        String keyValue = key.getValue() == null ? "" : key.getValue().strip();
-        if (keyValue.isBlank()) {
-            error(getTranslation("admin.tr.err.key"));
-            return;
-        }
+    private void save(TranslationAdminService service, String keyValue, Runnable onSaved) {
         if (english.getValue() == null || english.getValue().isBlank()) {
             error(getTranslation("admin.tr.err.en"));
-            return;
-        }
-        if (creating && service.exists(keyValue)) {
-            error(getTranslation("admin.tr.err.exists"));
             return;
         }
         service.save(keyValue, english.getValue(), spanish.getValue());

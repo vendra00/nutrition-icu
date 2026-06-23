@@ -12,9 +12,4 @@ public interface TranslationRepository extends JpaRepository<Translation, Long> 
 
     /** The single row for a language + key, for the admin editor's upsert. */
     Optional<Translation> findByLangTagAndMsgKey(String langTag, String msgKey);
-
-    boolean existsByMsgKey(String msgKey);
-
-    /** Removes a key across every language. */
-    long deleteByMsgKey(String msgKey);
 }

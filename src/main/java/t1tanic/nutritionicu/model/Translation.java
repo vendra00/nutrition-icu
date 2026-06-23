@@ -31,8 +31,12 @@ public class Translation extends BaseEntity {
     @Column(name = "msg_key", nullable = false, length = 200)
     private String msgKey;
 
-    /** The translated text; may contain {@code MessageFormat} placeholders like {@code {0}}. */
-    @Column(name = "value", nullable = false, columnDefinition = "text")
+    /**
+     * The translated text; may contain {@code MessageFormat} placeholders like {@code {0}}. The column name
+     * is backtick-quoted because {@code value} is a reserved word in some databases (e.g. H2); Hibernate
+     * emits it quoted (`"value"`), which still maps to the existing lowercase {@code value} column in Postgres.
+     */
+    @Column(name = "`value`", nullable = false, columnDefinition = "text")
     private String value;
 
     public Translation(String langTag, String msgKey, String value) {
