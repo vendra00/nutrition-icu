@@ -1,8 +1,10 @@
 package t1tanic.nutritionicu.ui.common;
 
 import com.vaadin.flow.component.datepicker.DatePicker;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 import t1tanic.nutritionicu.model.Patient;
@@ -20,6 +22,10 @@ public final class UiFormat {
     public static final DateTimeFormatter DATE_TIME =
             DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm", Locale.US);
 
+    /** Day-month-year with 24-hour time to the second, for precise event timestamps. */
+    public static final DateTimeFormatter DATE_TIME_SECONDS =
+            DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss", Locale.US);
+
     private UiFormat() {
     }
 
@@ -36,6 +42,11 @@ public final class UiFormat {
     /** A nullable timestamp as {@code dd-MM-yyyy HH:mm}, or {@link #EMPTY} when null. */
     public static String dateTime(LocalDateTime value) {
         return value == null ? EMPTY : DATE_TIME.format(value);
+    }
+
+    /** An {@link Instant} as {@code dd-MM-yyyy HH:mm:ss} in the system time zone, or {@link #EMPTY} when null. */
+    public static String instant(Instant value) {
+        return value == null ? EMPTY : DATE_TIME_SECONDS.format(value.atZone(ZoneId.systemDefault()));
     }
 
     /** Configures a date picker to display and parse dates as {@code dd-MM-yyyy}. */

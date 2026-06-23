@@ -81,8 +81,10 @@ public class LabReportParser {
     // ---- Modern layout (bilingual Catalan/Spanish) -----------------------
     // Single-field labels matched anywhere in the header block. The Spanish half of
     // each "Català / Castellano:" label is used as the anchor — it's the most stable.
+    // Anchored on the Catalan label; the Spanish half varies ("Número de petición:" vs
+    // "Número de petición del laboratorio:"), so we tolerate anything up to the colon + number.
     private static final Pattern M_ORDER =
-            Pattern.compile("Número de petició del laboratori / Número de petición:\\s*(\\d+)");
+            Pattern.compile("Número de petició del laboratori[^:\\n]*:\\s*(\\d+)");
     private static final Pattern M_NAME = Pattern.compile("Nombre y apellidos:\\s*(.+)");
     private static final Pattern M_BIRTH_SEX =
             Pattern.compile("Fecha de nacimiento:\\s*(\\d{1,2}/\\d{1,2}/\\d{2,4})\\s+Sexe / Sexo:\\s*(\\S+)");

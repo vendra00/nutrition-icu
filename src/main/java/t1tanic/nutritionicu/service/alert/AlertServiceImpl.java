@@ -131,14 +131,31 @@ public class AlertServiceImpl implements AlertService {
     }
 
     private AlertSummary toSummary(Alert alert) {
+        List<LabResult> abnormal = alert.getAbnormalResults();
         return new AlertSummary(
                 alert.getId(),
                 alert.getSeverity().name(),
                 alert.getStatus().name(),
+                alert.getPatient().getId(),
                 alert.getPatient().getMedicalRecordNumber(),
                 alert.getTargetSectors().stream().map(Enum::name).sorted().collect(Collectors.joining(", ")),
                 localizedMessage(alert),
-                alert.getCreatedAt());
+                alert.getCreatedAt(),
+                abnormal != null && hasRefeedingRisk(abnormal),
+                localizedResults(abnormal));
+    }
+
+    /** The abnormal readings as pre-localized {analyte, value+unit, flag} rows for the alert-detail table. */
+    private List<AlertSummary.AlertResult> localizedResults(List<LabResult> abnormal) {
+        if (abnormal == null) {
+            return List.of();
+        }
+        return abnormal.stream()
+                .map(result -> new AlertSummary.AlertResult(
+                        localizedAnalyte(result),
+                        result.getValueRaw() + (result.getUnit() != null ? " " + result.getUnit().getSymbol() : ""),
+                        result.getFlag() == null ? "" : I18n.t("resultFlag." + result.getFlag().name())))
+                .toList();
     }
 
     @Override
