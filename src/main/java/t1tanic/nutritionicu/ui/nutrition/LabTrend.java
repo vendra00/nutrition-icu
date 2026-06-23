@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.function.Function;
 import t1tanic.nutritionicu.model.LabResult;
+import t1tanic.nutritionicu.ui.common.I18n;
 
 /**
  * A single marker's numeric readings (oldest first) plus the derived latest value, trend and
@@ -93,15 +94,15 @@ record LabTrend(List<LabResult> readings) {
         Double low = refLow();
         Double high = refHigh();
         if (low != null && high != null) {
-            return "ref " + UiFormat.number(low) + "–" + UiFormat.number(high);
+            return I18n.t("metabolic.ref.range", UiFormat.number(low), UiFormat.number(high));
         }
         if (high != null) {
-            return "ref ≤ " + UiFormat.number(high);
+            return I18n.t("metabolic.ref.max", UiFormat.number(high));
         }
         if (low != null) {
-            return "ref ≥ " + UiFormat.number(low);
+            return I18n.t("metabolic.ref.min", UiFormat.number(low));
         }
-        return "no ref";
+        return I18n.t("metabolic.ref.none");
     }
 
     private Double lastNonNull(Function<LabResult, BigDecimal> getter) {

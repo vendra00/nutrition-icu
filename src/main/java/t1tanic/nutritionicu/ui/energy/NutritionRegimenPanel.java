@@ -21,6 +21,7 @@ import t1tanic.nutritionicu.model.NutritionProduct;
 import t1tanic.nutritionicu.model.enums.NutritionCategory;
 import t1tanic.nutritionicu.service.nutrition.NutritionFormulary;
 import t1tanic.nutritionicu.service.nutrition.NutritionRegimenCalculator;
+import t1tanic.nutritionicu.ui.common.I18n;
 import t1tanic.nutritionicu.ui.common.UiFormat;
 
 /**
@@ -34,8 +35,8 @@ public class NutritionRegimenPanel extends Composite<Details> {
     private final transient NutritionRegimenCalculator regimenCalculator;
     private final transient NutritionFormulary formulary;
 
-    private final RadioButtonGroup<NutritionCategory> categoryBox = new RadioButtonGroup<>("Type");
-    private final ComboBox<NutritionProduct> productBox = new ComboBox<>("Nutrition formula");
+    private final RadioButtonGroup<NutritionCategory> categoryBox = new RadioButtonGroup<>(I18n.t("energy.reg.type"));
+    private final ComboBox<NutritionProduct> productBox = new ComboBox<>(I18n.t("energy.reg.formula"));
     private final Span regimenPrompt = new Span();
     private final Grid<SummaryRow> summaryGrid = new Grid<>();
     private final Grid<MacroRow> macroGrid = new Grid<>();
@@ -44,14 +45,14 @@ public class NutritionRegimenPanel extends Composite<Details> {
 
     private EnergyExpenditureResult energy;
     private double actualWeightKg;
-    private String noEnergyPrompt = "Provide an energy target first.";
+    private String noEnergyPrompt = I18n.t("energy.reg.noenergy");
 
     public NutritionRegimenPanel(NutritionRegimenCalculator regimenCalculator, NutritionFormulary formulary) {
         this.regimenCalculator = regimenCalculator;
         this.formulary = formulary;
 
         categoryBox.setItems(NutritionCategory.values());
-        categoryBox.setItemLabelGenerator(NutritionCategory::label);
+        categoryBox.setItemLabelGenerator(c -> getTranslation("category." + c.name()));
         categoryBox.setValue(NutritionCategory.ENTERAL);
         categoryBox.addValueChangeListener(e -> applyCategoryFilter());
         categoryBox.getStyle().set("margin-right", "var(--lumo-space-xl)");
@@ -62,14 +63,15 @@ public class NutritionRegimenPanel extends Composite<Details> {
 
         configureMacroGrid();
         configureElectrolyteGrid();
-        tables.add(new Div(sectionLabel("Delivered over 24 h"), macroGrid),
-                new Div(sectionLabel("Electrolytes (24 h)"), electrolyteGrid));
+        tables.add(new Div(sectionLabel(getTranslation("energy.reg.delivered")), macroGrid),
+                new Div(sectionLabel(getTranslation("energy.reg.electrolytes")), electrolyteGrid));
         tables.getStyle().set("flex-wrap", "wrap").set("gap", "var(--lumo-space-l)");
 
         regimenPrompt.addClassName(LumoUtility.TextColor.SECONDARY);
 
-        summaryGrid.addColumn(SummaryRow::item).setHeader("Plan").setAutoWidth(true).setFlexGrow(0);
-        summaryGrid.addComponentColumn(SummaryRow::valueComponent).setHeader("Value")
+        summaryGrid.addColumn(SummaryRow::item).setHeader(getTranslation("energy.reg.plan"))
+                .setAutoWidth(true).setFlexGrow(0);
+        summaryGrid.addComponentColumn(SummaryRow::valueComponent).setHeader(getTranslation("energy.reg.value"))
                 .setAutoWidth(true).setFlexGrow(1);
         summaryGrid.setAllRowsVisible(true);
         summaryGrid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES, GridVariant.LUMO_COMPACT);
@@ -92,7 +94,7 @@ public class NutritionRegimenPanel extends Composite<Details> {
         content.setSpacing(false);
         content.getStyle().set("gap", "var(--lumo-space-l)").set("padding-top", "var(--lumo-space-s)");
 
-        getContent().setSummaryText("Choose nutrition");
+        getContent().setSummaryText(getTranslation("energy.reg.choose"));
         getContent().add(content);
         getContent().setOpened(true);
         renderRegimen();
@@ -133,7 +135,7 @@ public class NutritionRegimenPanel extends Composite<Details> {
         if (energy == null || product == null) {
             regimenPrompt.setText(energy == null
                     ? noEnergyPrompt
-                    : "Select a formula to see the administration plan.");
+                    : getTranslation("energy.reg.selectformula"));
             setRegimenContentVisible(false);
             return;
         }
@@ -155,49 +157,50 @@ public class NutritionRegimenPanel extends Composite<Details> {
     private static List<SummaryRow> summaryRows(NutritionRegimen plan, NutritionProduct product) {
         String osm = product.getOsmolarity() == null ? "" : ", " + product.getOsmolarity() + " mOsm/l";
         List<SummaryRow> rows = new ArrayList<>(List.of(
-                new SummaryRow("Infusion", "%d ml/h (%d ml/day, %s kcal/ml%s)".formatted(
-                        plan.infusionMlPerHour(), plan.dailyVolumeMl(),
+                new SummaryRow(I18n.t("energy.reg.infusion"), I18n.t("energy.reg.infusionval",
+                        String.valueOf(plan.infusionMlPerHour()), String.valueOf(plan.dailyVolumeMl()),
                         UiFormat.number(product.getDensityKcalPerMl()), osm), false),
-                new SummaryRow("Protein target", "%s g/day (%s g/kg of %s)".formatted(
+                new SummaryRow(I18n.t("energy.reg.proteintarget"), I18n.t("energy.reg.proteintargetval",
                         UiFormat.number(plan.proteinTargetG()),
                         UiFormat.number(plan.proteinTargetPerKg()), plan.proteinBasis()), false)));
         if (plan.proteinDeficitG() > 0) {
-            rows.add(new SummaryRow("Protein deficit vs target",
-                    "%d g/day".formatted(plan.proteinDeficitG()), true));
+            rows.add(new SummaryRow(I18n.t("energy.reg.proteindeficit"),
+                    I18n.t("energy.reg.proteindeficitval", String.valueOf(plan.proteinDeficitG())), true));
         }
         if (product.getIndications() != null && !product.getIndications().isBlank()) {
-            rows.add(new SummaryRow("Indications", product.getIndications(), false));
+            rows.add(new SummaryRow(I18n.t("energy.reg.indications"), product.getIndications(), false));
         }
         return rows;
     }
 
     private static List<MacroRow> macroRows(NutritionRegimen plan) {
         List<MacroRow> rows = new ArrayList<>(List.of(
-                new MacroRow("Protein", plan.proteinG() + " g", plan.proteinPercent() + "%"),
-                new MacroRow("Carbohydrate", plan.carbG() + " g", plan.carbPercent() + "%"),
-                new MacroRow("Fat", plan.fatG() + " g", plan.fatPercent() + "%"),
-                new MacroRow("Nitrogen", UiFormat.number(plan.nitrogenG()) + " g", "")));
+                new MacroRow(I18n.t("energy.reg.protein"), plan.proteinG() + " g", plan.proteinPercent() + "%"),
+                new MacroRow(I18n.t("energy.reg.carb"), plan.carbG() + " g", plan.carbPercent() + "%"),
+                new MacroRow(I18n.t("energy.reg.fat"), plan.fatG() + " g", plan.fatPercent() + "%"),
+                new MacroRow(I18n.t("energy.reg.nitrogen"), UiFormat.number(plan.nitrogenG()) + " g", "")));
         if (plan.fiberApplicable()) {
-            rows.add(new MacroRow("Fibre", UiFormat.number(plan.fiberG()) + " g", ""));
+            rows.add(new MacroRow(I18n.t("energy.reg.fibre"), UiFormat.number(plan.fiberG()) + " g", ""));
         }
         return rows;
     }
 
     private static List<ElectrolyteRow> electrolyteRows(NutritionRegimen.Electrolytes el) {
         return List.of(
-                new ElectrolyteRow("Sodium (Na)", UiFormat.number(el.sodiumG())),
-                new ElectrolyteRow("Potassium (K)", UiFormat.number(el.potassiumG())),
-                new ElectrolyteRow("Chloride (Cl)", UiFormat.number(el.chlorideG())),
-                new ElectrolyteRow("Calcium (Ca)", UiFormat.number(el.calciumG())),
-                new ElectrolyteRow("Magnesium (Mg)", UiFormat.number(el.magnesiumG())),
-                new ElectrolyteRow("Phosphorus (P)", UiFormat.number(el.phosphorusG())));
+                new ElectrolyteRow(I18n.t("energy.reg.na"), UiFormat.number(el.sodiumG())),
+                new ElectrolyteRow(I18n.t("energy.reg.k"), UiFormat.number(el.potassiumG())),
+                new ElectrolyteRow(I18n.t("energy.reg.cl"), UiFormat.number(el.chlorideG())),
+                new ElectrolyteRow(I18n.t("energy.reg.ca"), UiFormat.number(el.calciumG())),
+                new ElectrolyteRow(I18n.t("energy.reg.mg"), UiFormat.number(el.magnesiumG())),
+                new ElectrolyteRow(I18n.t("energy.reg.p"), UiFormat.number(el.phosphorusG())));
     }
 
     private void configureMacroGrid() {
-        macroGrid.addColumn(MacroRow::nutrient).setHeader("Nutrient").setAutoWidth(true).setFlexGrow(1);
-        macroGrid.addColumn(MacroRow::amount).setHeader("Amount / 24 h")
+        macroGrid.addColumn(MacroRow::nutrient).setHeader(getTranslation("energy.reg.col.nutrient"))
+                .setAutoWidth(true).setFlexGrow(1);
+        macroGrid.addColumn(MacroRow::amount).setHeader(getTranslation("energy.reg.col.amount"))
                 .setTextAlign(ColumnTextAlign.END).setAutoWidth(true);
-        macroGrid.addColumn(MacroRow::share).setHeader("% kcal")
+        macroGrid.addColumn(MacroRow::share).setHeader(getTranslation("energy.reg.col.share"))
                 .setTextAlign(ColumnTextAlign.END).setAutoWidth(true);
         macroGrid.setAllRowsVisible(true);
         macroGrid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES, GridVariant.LUMO_COMPACT);
@@ -205,9 +208,9 @@ public class NutritionRegimenPanel extends Composite<Details> {
     }
 
     private void configureElectrolyteGrid() {
-        electrolyteGrid.addColumn(ElectrolyteRow::name).setHeader("Electrolyte")
+        electrolyteGrid.addColumn(ElectrolyteRow::name).setHeader(getTranslation("energy.reg.col.electrolyte"))
                 .setAutoWidth(true).setFlexGrow(1);
-        electrolyteGrid.addColumn(ElectrolyteRow::amount).setHeader("g / 24 h")
+        electrolyteGrid.addColumn(ElectrolyteRow::amount).setHeader(getTranslation("energy.reg.col.g"))
                 .setTextAlign(ColumnTextAlign.END).setAutoWidth(true);
         electrolyteGrid.setAllRowsVisible(true);
         electrolyteGrid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES, GridVariant.LUMO_COMPACT);

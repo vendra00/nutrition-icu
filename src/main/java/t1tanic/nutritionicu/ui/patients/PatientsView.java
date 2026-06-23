@@ -12,7 +12,7 @@ import com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment;
 import com.vaadin.flow.component.orderedlayout.FlexComponent.JustifyContentMode;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-import com.vaadin.flow.router.PageTitle;
+import com.vaadin.flow.router.HasDynamicTitle;
 import com.vaadin.flow.router.Route;
 import jakarta.annotation.security.PermitAll;
 import java.time.LocalDate;
@@ -23,9 +23,13 @@ import t1tanic.nutritionicu.service.patient.PatientService;
 
 /** All patients, with anthropometry and a per-row editor for the doctor. */
 @Route(value = "patients", layout = MainLayout.class)
-@PageTitle("Patients · ICU Nutrition")
 @PermitAll
-public class PatientsView extends VerticalLayout {
+public class PatientsView extends VerticalLayout implements HasDynamicTitle {
+
+    @Override
+    public String getPageTitle() {
+        return getTranslation("patients.title") + " · " + getTranslation("app.title");
+    }
 
     private final transient NutritionService nutritionService;
     private final transient PatientService patientService;
@@ -41,26 +45,27 @@ public class PatientsView extends VerticalLayout {
         setSizeFull();
         setPadding(true);
 
-        Button newPatient = new Button("New patient", e ->
+        Button newPatient = new Button(getTranslation("patients.new"), e ->
                 new PatientEditor(null, patientService, this::refresh).open());
         newPatient.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        HorizontalLayout header = new HorizontalLayout(new H2("Patients"), newPatient);
+        HorizontalLayout header = new HorizontalLayout(new H2(getTranslation("patients.title")), newPatient);
         header.setWidthFull();
         header.setAlignItems(Alignment.CENTER);
         header.setJustifyContentMode(JustifyContentMode.BETWEEN);
         add(header);
 
-        grid.addComponentColumn(this::nhcLink).setHeader("NHC").setAutoWidth(true);
-        grid.addColumn(Patient::getFullName).setHeader("Name").setFlexGrow(2);
-        grid.addColumn(Patient::getSex).setHeader("Sex").setAutoWidth(true);
-        grid.addColumn(p -> dateText(p.getBirthDate())).setHeader("Born").setAutoWidth(true);
-        grid.addColumn(p -> p.isMonitored() ? "Yes" : "No").setHeader("Monitored").setAutoWidth(true);
-        grid.addColumn(p -> dateText(p.getAdmissionDate())).setHeader("Admitted").setAutoWidth(true);
-        grid.addColumn(p -> dateText(p.getDischargeDate())).setHeader("Discharged").setAutoWidth(true);
-        grid.addColumn(p -> UiFormat.number(p.getHeightCm())).setHeader("Height (cm)").setAutoWidth(true);
-        grid.addColumn(p -> UiFormat.number(p.getCurrentWeightKg())).setHeader("Weight (kg)").setAutoWidth(true);
+        grid.addComponentColumn(this::nhcLink).setHeader(getTranslation("patients.col.nhc")).setAutoWidth(true);
+        grid.addColumn(Patient::getFullName).setHeader(getTranslation("patients.col.name")).setFlexGrow(2);
+        grid.addColumn(this::sexText).setHeader(getTranslation("patients.col.sex")).setAutoWidth(true);
+        grid.addColumn(p -> dateText(p.getBirthDate())).setHeader(getTranslation("patients.col.born")).setAutoWidth(true);
+        grid.addColumn(p -> getTranslation(p.isMonitored() ? "common.yes" : "common.no"))
+                .setHeader(getTranslation("patients.col.monitored")).setAutoWidth(true);
+        grid.addColumn(p -> dateText(p.getAdmissionDate())).setHeader(getTranslation("patients.col.admitted")).setAutoWidth(true);
+        grid.addColumn(p -> dateText(p.getDischargeDate())).setHeader(getTranslation("patients.col.discharged")).setAutoWidth(true);
+        grid.addColumn(p -> UiFormat.number(p.getHeightCm())).setHeader(getTranslation("patients.col.height")).setAutoWidth(true);
+        grid.addColumn(p -> UiFormat.number(p.getCurrentWeightKg())).setHeader(getTranslation("patients.col.weight")).setAutoWidth(true);
         grid.addComponentColumn(p -> BmiBadge.ofNullable(nutritionService.metricsFor(p).bmi()))
-                .setHeader("BMI").setAutoWidth(true);
+                .setHeader(getTranslation("patients.col.bmi")).setAutoWidth(true);
         grid.addComponentColumn(this::actions).setHeader("").setAutoWidth(true);
 
         grid.setItems(patientService.findAll());
@@ -78,11 +83,15 @@ public class PatientsView extends VerticalLayout {
 
     private Component actions(Patient patient) {
         // Demographics here; body-data/weight live in the Nutrition tab, stay dates in the Stay dialog.
-        Button edit = new Button("Edit", e ->
+        Button edit = new Button(getTranslation("common.edit"), e ->
                 new PatientEditor(patient, patientService, this::refresh).open());
-        Button stay = new Button("Stay", e ->
+        Button stay = new Button(getTranslation("patients.stay"), e ->
                 new PatientStayDialog(patient, patientService, this::refresh).open());
         return new HorizontalLayout(edit, stay);
+    }
+
+    private String sexText(Patient patient) {
+        return getTranslation("sex." + (patient.getSex() == null ? "UNKNOWN" : patient.getSex().name()));
     }
 
     private void refresh() {

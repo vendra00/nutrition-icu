@@ -1,4 +1,5 @@
 package t1tanic.nutritionicu.ui.energy;
+import t1tanic.nutritionicu.ui.common.I18n;
 import t1tanic.nutritionicu.ui.common.MetricsTable;
 import t1tanic.nutritionicu.ui.common.TrendChart;
 import t1tanic.nutritionicu.ui.common.UiFormat;
@@ -47,14 +48,14 @@ public class CalorimetryView extends VerticalLayout {
     private final transient NutritionService nutritionService;
     private final transient EnergyAssessmentService energyService;
 
-    private final ComboBox<Patient> patientBox = new ComboBox<>("Patient");
-    private final Span patientPrompt = new Span("Select a patient to record and see their studies.");
-    private final Grid<MetricsTable.Row> patientGrid = MetricsTable.create("Patient data");
+    private final ComboBox<Patient> patientBox = new ComboBox<>(I18n.t("common.patient"));
+    private final Span patientPrompt = new Span(I18n.t("energy.cal.selectprompt"));
+    private final Grid<MetricsTable.Row> patientGrid = MetricsTable.create(I18n.t("energy.hb.patientdata"));
 
-    private final DatePicker date = new DatePicker("Date");
-    private final NumberField measuredKcal = new NumberField("Measured EE (kcal/day)");
-    private final NumberField rq = new NumberField("RQ");
-    private final Button addOrUpdate = new Button("Add / update");
+    private final DatePicker date = new DatePicker(I18n.t("energy.cal.date"));
+    private final NumberField measuredKcal = new NumberField(I18n.t("energy.cal.measured"));
+    private final NumberField rq = new NumberField(I18n.t("energy.cal.rq"));
+    private final Button addOrUpdate = new Button(I18n.t("energy.cal.addupdate"));
 
     private final Div latestHolder = new Div();
     private final Grid<EnergyAssessment> historyGrid = new Grid<>(EnergyAssessment.class, false);
@@ -72,8 +73,7 @@ public class CalorimetryView extends VerticalLayout {
         this.nutritionService = nutritionService;
         this.energyService = energyService;
         this.regimenPanel = new NutritionRegimenPanel(regimenCalculator, formulary);
-        this.regimenPanel.setNoEnergyPrompt("Record a calorimetry study (the patient also needs "
-                + "height and weight on file) to see the administration plan.");
+        this.regimenPanel.setNoEnergyPrompt(getTranslation("energy.cal.noenergy"));
         setWidthFull();
         setPadding(false);
 
@@ -91,7 +91,7 @@ public class CalorimetryView extends VerticalLayout {
 
         VerticalLayout content = new VerticalLayout(patientBox, patientPrompt, patientGrid);
         content.setPadding(false);
-        Details panel = new Details("Patient", content);
+        Details panel = new Details(getTranslation("energy.cal.patient"), content);
         panel.setOpened(true);
         return panel;
     }
@@ -105,18 +105,20 @@ public class CalorimetryView extends VerticalLayout {
         rq.setStep(0.01);
         rq.setMin(0);
         rq.setMax(2);
-        rq.setHelperText("VCO₂/VO₂ · 0.85 ≈ balanced");
+        rq.setHelperText(getTranslation("energy.cal.rqhelper"));
         addOrUpdate.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         addOrUpdate.addClickListener(e -> save());
         HorizontalLayout form = new HorizontalLayout(date, measuredKcal, rq, addOrUpdate);
         form.setAlignItems(FlexComponent.Alignment.BASELINE);
 
-        historyGrid.addColumn(m -> UiFormat.date(m.getAssessedOn())).setHeader("Date").setAutoWidth(true);
-        historyGrid.addColumn(m -> m.getTotalKcalPerDay() + " kcal/day")
-                .setHeader("Measured EE").setAutoWidth(true);
-        historyGrid.addComponentColumn(m -> rqBadge(m.getRq())).setHeader("RQ").setAutoWidth(true);
+        historyGrid.addColumn(m -> UiFormat.date(m.getAssessedOn()))
+                .setHeader(getTranslation("energy.cal.date")).setAutoWidth(true);
+        historyGrid.addColumn(m -> m.getTotalKcalPerDay() + " " + getTranslation("unit.kcalday"))
+                .setHeader(getTranslation("energy.cal.col.measured")).setAutoWidth(true);
+        historyGrid.addComponentColumn(m -> rqBadge(m.getRq()))
+                .setHeader(getTranslation("energy.cal.rq")).setAutoWidth(true);
         if (SecurityUtils.isAdmin()) {
-            historyGrid.addComponentColumn(m -> new Button("Delete", e -> {
+            historyGrid.addComponentColumn(m -> new Button(getTranslation("common.delete"), e -> {
                 energyService.delete(m.getId());
                 refresh();
             })).setHeader("").setAutoWidth(true);
@@ -128,7 +130,7 @@ public class CalorimetryView extends VerticalLayout {
         VerticalLayout content = new VerticalLayout(form, latestHolder, historyGrid, chartHolder);
         content.setPadding(false);
         content.getStyle().set("gap", "var(--lumo-space-m)");
-        Details panel = new Details("Calorimetry studies", content);
+        Details panel = new Details(getTranslation("energy.cal.studies"), content);
         panel.setOpened(true);
         return panel;
     }
@@ -183,7 +185,7 @@ public class CalorimetryView extends VerticalLayout {
                         m.getAssessedOn().atStartOfDay(ZoneId.systemDefault()).toInstant(),
                         (double) m.getTotalKcalPerDay()))
                 .toList();
-        chartHolder.add(new TrendChart(points, null, null, "kcal/day"));
+        chartHolder.add(new TrendChart(points, null, null, getTranslation("unit.kcalday")));
 
         renderLatest(patient, history);
         updateRegimen(patient);
@@ -191,7 +193,7 @@ public class CalorimetryView extends VerticalLayout {
 
     private void renderLatest(Patient patient, List<EnergyAssessment> history) {
         if (history.isEmpty()) {
-            Span none = new Span("No calorimetry studies recorded yet.");
+            Span none = new Span(getTranslation("energy.cal.none"));
             none.addClassNames(LumoUtility.TextColor.SECONDARY);
             latestHolder.add(none);
             return;
@@ -199,10 +201,10 @@ public class CalorimetryView extends VerticalLayout {
         EnergyAssessment latest = history.get(history.size() - 1);
         Double weight = patient.getCurrentWeightKg();
         String perKg = weight != null && weight > 0
-                ? " · " + UiFormat.number(latest.getTotalKcalPerDay() / weight) + " kcal/kg/day"
+                ? getTranslation("energy.cal.perkg", UiFormat.number(latest.getTotalKcalPerDay() / weight))
                 : "";
-        Span badge = new Span("Latest: %d kcal/day%s  (%s)".formatted(
-                latest.getTotalKcalPerDay(), perKg, UiFormat.date(latest.getAssessedOn())));
+        Span badge = new Span(getTranslation("energy.cal.latest",
+                String.valueOf(latest.getTotalKcalPerDay()), perKg, UiFormat.date(latest.getAssessedOn())));
         badge.getElement().getThemeList().add("badge primary");
         badge.addClassName(LumoUtility.FontSize.LARGE);
         badge.getStyle().set("white-space", "normal").set("margin-right", "var(--lumo-space-s)");
@@ -230,18 +232,14 @@ public class CalorimetryView extends VerticalLayout {
 
     private static List<MetricsTable.Row> patientRows(Patient p) {
         return List.of(
-                new MetricsTable.Row("Sex", sexText(p.getSex())),
-                new MetricsTable.Row("Age", UiFormat.ageYears(p)),
-                new MetricsTable.Row("Height", UiFormat.number(p.getHeightCm()) + " cm"),
-                new MetricsTable.Row("Weight (current)", UiFormat.number(p.getCurrentWeightKg()) + " kg"));
+                new MetricsTable.Row(I18n.t("energy.row.sex"), sexText(p.getSex())),
+                new MetricsTable.Row(I18n.t("energy.row.age"), UiFormat.ageYears(p)),
+                new MetricsTable.Row(I18n.t("energy.row.height"), UiFormat.number(p.getHeightCm()) + " cm"),
+                new MetricsTable.Row(I18n.t("energy.row.weightcurrent"), UiFormat.number(p.getCurrentWeightKg()) + " kg"));
     }
 
     private static String sexText(Sex sex) {
-        return switch (sex) {
-            case MALE -> "Male";
-            case FEMALE -> "Female";
-            case UNKNOWN -> UiFormat.EMPTY;
-        };
+        return sex == Sex.UNKNOWN ? UiFormat.EMPTY : I18n.t("sex." + sex.name());
     }
 
     /** RQ as a coloured pill with its over/under-feeding reading (ESPEN guidance). */
@@ -253,19 +251,19 @@ public class CalorimetryView extends VerticalLayout {
         String bg;
         String fg;
         if (value < 0.70) {
-            label = "underfeeding";
+            label = I18n.t("energy.rq.underfeeding");
             bg = "#FCE4E4";
             fg = "#C62828";
         } else if (value <= 0.90) {
-            label = "balanced";
+            label = I18n.t("energy.rq.balanced");
             bg = "#E6F4EA";
             fg = "#2E7D32";
         } else if (value <= 1.00) {
-            label = "possible overfeeding";
+            label = I18n.t("energy.rq.overfeedingpossible");
             bg = "#FFEBD6";
             fg = "#E65100";
         } else {
-            label = "overfeeding";
+            label = I18n.t("energy.rq.overfeeding");
             bg = "#FCE4E4";
             fg = "#C62828";
         }

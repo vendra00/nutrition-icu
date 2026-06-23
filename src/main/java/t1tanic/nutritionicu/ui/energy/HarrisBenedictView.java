@@ -22,6 +22,7 @@ import t1tanic.nutritionicu.service.nutrition.NutritionFormulary;
 import t1tanic.nutritionicu.service.nutrition.NutritionRegimenCalculator;
 import t1tanic.nutritionicu.service.nutrition.NutritionService;
 import t1tanic.nutritionicu.service.patient.PatientService;
+import t1tanic.nutritionicu.ui.common.I18n;
 import t1tanic.nutritionicu.ui.common.MetricsTable;
 import t1tanic.nutritionicu.ui.common.UiFormat;
 
@@ -38,17 +39,17 @@ public class HarrisBenedictView extends VerticalLayout {
     private final transient HarrisBenedictCalculator calculator;
     private final transient EnergyAssessmentService energyService;
 
-    private final ComboBox<Patient> patientBox = new ComboBox<>("Patient");
-    private final ComboBox<StressFactor> stressBox = new ComboBox<>("Stress degree");
-    private final Span patientPrompt = new Span("Select a patient to see their data.");
-    private final Grid<MetricsTable.Row> patientGrid = MetricsTable.create("Patient data");
+    private final ComboBox<Patient> patientBox = new ComboBox<>(I18n.t("common.patient"));
+    private final ComboBox<StressFactor> stressBox = new ComboBox<>(I18n.t("energy.hb.stress"));
+    private final Span patientPrompt = new Span(I18n.t("energy.hb.selectprompt"));
+    private final Grid<MetricsTable.Row> patientGrid = MetricsTable.create(I18n.t("energy.hb.patientdata"));
     private final NutritionRegimenPanel regimenPanel;
 
     private final Span energyPrompt =
-            new Span("Select a patient with sex, age, height and weight on file to calculate.");
+            new Span(I18n.t("energy.hb.calcprompt"));
     private final Span totalBadge = new Span();
-    private final Grid<MetricsTable.Row> energyGrid = MetricsTable.create("Metric");
-    private final Button saveButton = new Button("Save assessment");
+    private final Grid<MetricsTable.Row> energyGrid = MetricsTable.create(I18n.t("energy.hb.metric"));
+    private final Button saveButton = new Button(I18n.t("energy.hb.save"));
 
     private Patient selectedPatient;
     private EnergyExpenditureResult lastEnergy;
@@ -65,7 +66,7 @@ public class HarrisBenedictView extends VerticalLayout {
         this.calculator = calculator;
         this.energyService = energyService;
         this.regimenPanel = new NutritionRegimenPanel(regimenCalculator, formulary);
-        this.regimenPanel.setNoEnergyPrompt("Calculate energy expenditure first.");
+        this.regimenPanel.setNoEnergyPrompt(getTranslation("energy.hb.noenergy"));
         setWidthFull();
         setPadding(false);
 
@@ -81,19 +82,18 @@ public class HarrisBenedictView extends VerticalLayout {
         patientGrid.setWidth("34em");
         patientGrid.setVisible(false);
 
-        Span editHint = new Span("Sex, age, height and weight are read from the patient record — "
-                + "edit them in the Patients tab.");
+        Span editHint = new Span(getTranslation("energy.hb.edithint"));
         editHint.addClassNames(LumoUtility.FontSize.XSMALL, LumoUtility.TextColor.SECONDARY);
 
         stressBox.setItems(StressFactor.values());
-        stressBox.setItemLabelGenerator(s -> "%s (×%.2f)".formatted(s.label(), s.factor()));
+        stressBox.setItemLabelGenerator(s -> "%s (×%.2f)".formatted(getTranslation("stress." + s.name()), s.factor()));
         stressBox.setValue(StressFactor.NO_STRESS);
         stressBox.addValueChangeListener(e -> recompute());
 
         VerticalLayout content = new VerticalLayout(
                 patientBox, patientPrompt, patientGrid, editHint, stressBox);
         content.setPadding(false);
-        Details panel = new Details("Patient & inputs", content);
+        Details panel = new Details(getTranslation("energy.hb.inputs"), content);
         panel.setOpened(true);
         return panel;
     }
@@ -109,7 +109,7 @@ public class HarrisBenedictView extends VerticalLayout {
         saveButton.setEnabled(false);
         saveButton.addClickListener(e -> saveAssessment());
 
-        Details panel = new Details("Energy expenditure (GET)",
+        Details panel = new Details(getTranslation("energy.hb.get"),
                 new Div(energyPrompt, totalBadge, energyGrid, saveButton));
         panel.setOpened(true);
         return panel;
@@ -121,14 +121,12 @@ public class HarrisBenedictView extends VerticalLayout {
             return;
         }
         energyService.recordHarrisBenedict(patient.getId(), LocalDate.now(), lastEnergy, lastActualWeightKg);
-        Notification.show("Saved Harris-Benedict assessment for " + patient.getFullName(),
+        Notification.show(getTranslation("energy.hb.saved", patient.getFullName()),
                 3000, Notification.Position.BOTTOM_START);
     }
 
     private Span note() {
-        Span note = new Span("Decision support only. Reproduces the rccc.eu Harris-Benedict "
-                + "calculator: total = basal × (0.1 activity + stress factor), with an obesity weight "
-                + "adjustment above BMI 30. The infusion rate delivers GET over 24 h.");
+        Span note = new Span(getTranslation("energy.hb.note"));
         note.addClassNames(LumoUtility.FontSize.XSMALL, LumoUtility.TextColor.SECONDARY);
         return note;
     }
@@ -148,28 +146,24 @@ public class HarrisBenedictView extends VerticalLayout {
     private List<MetricsTable.Row> patientRows(Patient p) {
         String weightValue = UiFormat.number(p.getCurrentWeightKg()) + " kg";
         MetricsTable.Row weight = nutritionService.latestWeight(p.getId())
-                .map(w -> new MetricsTable.Row("Weight (current)", weightValue, null,
-                        "Recorded " + UiFormat.date(w.getMeasuredOn())))
-                .orElse(new MetricsTable.Row("Weight (current)", weightValue));
+                .map(w -> new MetricsTable.Row(getTranslation("energy.row.weightcurrent"), weightValue, null,
+                        getTranslation("energy.row.recorded", UiFormat.date(w.getMeasuredOn()))))
+                .orElse(new MetricsTable.Row(getTranslation("energy.row.weightcurrent"), weightValue));
         MetricsTable.Row temperature = nutritionService.latestTemperature(p.getId())
-                .map(t -> new MetricsTable.Row("Temperature (latest)",
+                .map(t -> new MetricsTable.Row(getTranslation("energy.row.temperature"),
                         UiFormat.number(t.getTemperatureCelsius()) + " °C", null,
-                        "Recorded " + UiFormat.date(t.getMeasuredOn())))
-                .orElse(new MetricsTable.Row("Temperature (latest)", UiFormat.EMPTY));
+                        getTranslation("energy.row.recorded", UiFormat.date(t.getMeasuredOn()))))
+                .orElse(new MetricsTable.Row(getTranslation("energy.row.temperature"), UiFormat.EMPTY));
         return List.of(
-                new MetricsTable.Row("Sex", sexText(p.getSex())),
-                new MetricsTable.Row("Age", UiFormat.ageYears(p)),
-                new MetricsTable.Row("Height", UiFormat.number(p.getHeightCm()) + " cm"),
+                new MetricsTable.Row(getTranslation("energy.row.sex"), sexText(p.getSex())),
+                new MetricsTable.Row(getTranslation("energy.row.age"), UiFormat.ageYears(p)),
+                new MetricsTable.Row(getTranslation("energy.row.height"), UiFormat.number(p.getHeightCm()) + " cm"),
                 weight,
                 temperature);
     }
 
     private static String sexText(Sex sex) {
-        return switch (sex) {
-            case MALE -> "Male";
-            case FEMALE -> "Female";
-            case UNKNOWN -> UiFormat.EMPTY;
-        };
+        return sex == Sex.UNKNOWN ? UiFormat.EMPTY : I18n.t("sex." + sex.name());
     }
 
     private void recompute() {
@@ -203,27 +197,28 @@ public class HarrisBenedictView extends VerticalLayout {
         lastEnergy = r;
         lastActualWeightKg = weight;
         saveButton.setEnabled(true);
-        totalBadge.setText("GET (total): %d kcal/day".formatted(r.totalKcalPerDay()));
+        totalBadge.setText(getTranslation("energy.hb.gettotal", String.valueOf(r.totalKcalPerDay())));
         energyGrid.setItems(metricRows(r));
         regimenPanel.update(r, weight);
     }
 
     private static List<MetricsTable.Row> metricRows(EnergyExpenditureResult r) {
         return List.of(
-                new MetricsTable.Row("GEB (basal)", r.basalKcalPerDay() + " kcal/day"),
-                new MetricsTable.Row("Per kg (actual weight)",
-                        UiFormat.number(r.kcalPerKgPerDay()) + " kcal/kg/day"),
-                new MetricsTable.Row("BMI", UiFormat.number(r.bmi()), r.bmi()),
-                new MetricsTable.Row("Weight class", weightBasis(r)),
-                new MetricsTable.Row("Ideal body weight", UiFormat.number(r.idealBodyWeightKg()) + " kg"),
-                new MetricsTable.Row("Weight used in equation", UiFormat.number(r.weightUsedKg()) + " kg"));
+                new MetricsTable.Row(I18n.t("energy.hb.geb"), r.basalKcalPerDay() + " " + I18n.t("unit.kcalday")),
+                new MetricsTable.Row(I18n.t("energy.hb.perkg"),
+                        UiFormat.number(r.kcalPerKgPerDay()) + " " + I18n.t("unit.kcalkgday")),
+                new MetricsTable.Row(I18n.t("energy.hb.bmi"), UiFormat.number(r.bmi()), r.bmi()),
+                new MetricsTable.Row(I18n.t("energy.hb.weightclass"), weightBasis(r)),
+                new MetricsTable.Row(I18n.t("energy.hb.ibw"), UiFormat.number(r.idealBodyWeightKg()) + " kg"),
+                new MetricsTable.Row(I18n.t("energy.hb.weightused"), UiFormat.number(r.weightUsedKg()) + " kg"));
     }
 
     private static String weightBasis(EnergyExpenditureResult r) {
         Double adj = r.weightClass().adjustmentConstant();
+        String name = I18n.t("weightclass." + r.weightClass().name());
         return adj == null
-                ? r.weightClass().label()
-                : "%s (adjustment %.2f)".formatted(r.weightClass().label(), adj);
+                ? name
+                : I18n.t("energy.hb.adjustment", name, "%.2f".formatted(adj));
     }
 
     private static boolean positive(Double value) {

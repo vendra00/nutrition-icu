@@ -1,22 +1,22 @@
 package t1tanic.nutritionicu.model.enums;
 
 /**
- * ICU admission diagnosis category ("motivo de ingreso"). Drives the kind of nutrition course expected
- * and is used to prefer same-condition cases when comparing a patient against the archive. Labels are
- * the Spanish terms used by the unit.
+ * ICU admission diagnosis category. Drives the kind of nutrition course expected and is used to prefer
+ * same-condition cases when comparing a patient against the archive. Labels are English; once app-wide
+ * i18n lands these can resolve per locale.
  */
 public enum AdmissionDiagnosis {
 
-    TBI("TCE"),
-    TBI_POLYTRAUMA("TCE + Politrauma grave"),
-    ACUTE_SPINAL_CORD_INJURY("Lesión medular aguda traumática"),
-    POLYTRAUMA_NO_SEVERE_TBI("Politrauma sin TCE grave"),
-    MAJOR_BURNS("Gran quemado"),
-    SEPTIC_SHOCK("Shock séptico"),
-    ACUTE_RESPIRATORY_FAILURE("Insuficiencia respiratoria aguda"),
-    COMPLEX_POSTOP("Postoperatorio complejo"),
-    OTHER_NEUROLOGICAL("Otros neurológicos"),
-    OTHER_MEDICAL("Otros médicos");
+    TBI("Traumatic brain injury (TBI)"),
+    TBI_POLYTRAUMA("Severe TBI + polytrauma"),
+    ACUTE_SPINAL_CORD_INJURY("Acute traumatic spinal cord injury"),
+    POLYTRAUMA_NO_SEVERE_TBI("Polytrauma without severe TBI"),
+    MAJOR_BURNS("Major burns"),
+    SEPTIC_SHOCK("Septic shock"),
+    ACUTE_RESPIRATORY_FAILURE("Acute respiratory failure"),
+    COMPLEX_POSTOP("Complex postoperative"),
+    OTHER_NEUROLOGICAL("Other neurological"),
+    OTHER_MEDICAL("Other medical");
 
     private final String label;
 

@@ -1,4 +1,5 @@
 package t1tanic.nutritionicu.ui.energy;
+import t1tanic.nutritionicu.ui.common.I18n;
 import t1tanic.nutritionicu.ui.common.TrendChart;
 import t1tanic.nutritionicu.ui.common.UiFormat;
 
@@ -30,8 +31,8 @@ public class EnergyComparisonView extends VerticalLayout {
     private final transient PatientService patientService;
     private final transient EnergyAssessmentService energyService;
 
-    private final ComboBox<Patient> patientBox = new ComboBox<>("Patient");
-    private final Span prompt = new Span("Select a patient to compare Harris-Benedict vs calorimetry.");
+    private final ComboBox<Patient> patientBox = new ComboBox<>(I18n.t("common.patient"));
+    private final Span prompt = new Span(I18n.t("energy.cmp.selectprompt"));
     private final Div summaryHolder = new Div();
     private final Div chartHolder = new Div();
 
@@ -71,7 +72,7 @@ public class EnergyComparisonView extends VerticalLayout {
         List<EnergyAssessment> hb = energyService.history(patient.getId(), EnergyMethod.HARRIS_BENEDICT);
         List<EnergyAssessment> ic = energyService.history(patient.getId(), EnergyMethod.INDIRECT_CALORIMETRY);
         if (hb.isEmpty() && ic.isEmpty()) {
-            Span none = new Span("No energy assessments recorded for this patient yet.");
+            Span none = new Span(getTranslation("energy.cmp.none"));
             none.addClassName(LumoUtility.TextColor.SECONDARY);
             summaryHolder.add(none);
             return;
@@ -83,12 +84,12 @@ public class EnergyComparisonView extends VerticalLayout {
 
         List<TrendChart.Series> series = new ArrayList<>();
         if (!hb.isEmpty()) {
-            series.add(new TrendChart.Series("Harris-Benedict (predicted)", pointsOf(hb)));
+            series.add(new TrendChart.Series(getTranslation("energy.cmp.hbseries"), pointsOf(hb)));
         }
         if (!ic.isEmpty()) {
-            series.add(new TrendChart.Series("Indirect calorimetry (measured)", pointsOf(ic)));
+            series.add(new TrendChart.Series(getTranslation("energy.cmp.icseries"), pointsOf(ic)));
         }
-        chartHolder.add(new TrendChart(series, "kcal/day"));
+        chartHolder.add(new TrendChart(series, getTranslation("unit.kcalday")));
     }
 
     private Component summary(Optional<EnergyAssessment> ic, Optional<EnergyAssessment> hb) {
@@ -96,18 +97,20 @@ public class EnergyComparisonView extends VerticalLayout {
         box.setPadding(false);
         box.setSpacing(false);
         box.getStyle().set("gap", "var(--lumo-space-xs)");
-        box.add(kv("Latest measured (IC)", ic.map(EnergyComparisonView::valueText).orElse(UiFormat.EMPTY)));
-        box.add(kv("Latest predicted (HB)", hb.map(EnergyComparisonView::valueText).orElse(UiFormat.EMPTY)));
+        box.add(kv(getTranslation("energy.cmp.latestmeasured"),
+                ic.map(EnergyComparisonView::valueText).orElse(UiFormat.EMPTY)));
+        box.add(kv(getTranslation("energy.cmp.latestpredicted"),
+                hb.map(EnergyComparisonView::valueText).orElse(UiFormat.EMPTY)));
         if (ic.isPresent() && hb.isPresent()) {
             int measured = ic.get().getTotalKcalPerDay();
             int predicted = hb.get().getTotalKcalPerDay();
             double pct = measured * 100.0 / predicted;
             int diff = measured - predicted;
-            Span label = new Span("Measured vs predicted");
+            Span label = new Span(getTranslation("energy.cmp.measuredvspredicted"));
             label.addClassName(LumoUtility.FontWeight.SEMIBOLD);
             label.setWidth("13em");
             HorizontalLayout row = new HorizontalLayout(
-                    label, pctPill(pct), new Span("(%+d kcal/day)".formatted(diff)));
+                    label, pctPill(pct), new Span(getTranslation("energy.cmp.diff", "%+d".formatted(diff))));
             row.setAlignItems(FlexComponent.Alignment.CENTER);
             box.add(row);
         }
@@ -124,7 +127,7 @@ public class EnergyComparisonView extends VerticalLayout {
     }
 
     private static String valueText(EnergyAssessment a) {
-        return a.getTotalKcalPerDay() + " kcal/day · " + UiFormat.date(a.getAssessedOn());
+        return I18n.t("energy.cmp.value", String.valueOf(a.getTotalKcalPerDay()), UiFormat.date(a.getAssessedOn()));
     }
 
     /** "N% of predicted" pill, green near 100%, orange for a moderate gap, red for a large one. */
@@ -142,7 +145,7 @@ public class EnergyComparisonView extends VerticalLayout {
             bg = "#FCE4E4";
             fg = "#C62828";
         }
-        Span pill = new Span(Math.round(pct) + "% of predicted");
+        Span pill = new Span(I18n.t("energy.cmp.pctpill", String.valueOf(Math.round(pct))));
         pill.getStyle().set("background-color", bg).set("color", fg)
                 .set("padding", "0.1em 0.6em").set("border-radius", "var(--lumo-border-radius-s)")
                 .set("font-weight", "500").set("white-space", "nowrap");

@@ -1,4 +1,5 @@
 package t1tanic.nutritionicu.ui.nutrition;
+import t1tanic.nutritionicu.ui.common.I18n;
 import t1tanic.nutritionicu.ui.common.TrendChart;
 import t1tanic.nutritionicu.ui.common.UiFormat;
 
@@ -30,17 +31,17 @@ public class NutritionDeliveryDialog extends Dialog {
     private final transient NutritionDeliveryService deliveryService;
     private final Long patientId;
 
-    private final DatePicker date = new DatePicker("Date");
-    private final NumberField prescribed = new NumberField("Prescribed (ml/h)");
-    private final NumberField actual = new NumberField("Actual (ml/h)");
-    private final NumberField density = new NumberField("kcal/ml");
+    private final DatePicker date = new DatePicker(I18n.t("nd.date"));
+    private final NumberField prescribed = new NumberField(I18n.t("nd.delivery.prescribed"));
+    private final NumberField actual = new NumberField(I18n.t("nd.delivery.actual"));
+    private final NumberField density = new NumberField(I18n.t("nd.delivery.density"));
     private final Div chartHolder = new Div();
     private final Grid<NutritionDelivery> grid = new Grid<>(NutritionDelivery.class, false);
 
     public NutritionDeliveryDialog(Patient patient, NutritionDeliveryService deliveryService) {
         this.deliveryService = deliveryService;
         this.patientId = patient.getId();
-        setHeaderTitle("Nutrition delivery · " + patient.getFullName());
+        setHeaderTitle(getTranslation("nd.delivery.title", patient.getFullName()));
         setWidth("760px");
 
         UiFormat.dayMonthYear(date);
@@ -50,23 +51,26 @@ public class NutritionDeliveryDialog extends Dialog {
         actual.setMin(0);
         density.setMin(0);
         density.setStep(0.1);
-        density.setHelperText("optional · from the formula");
-        Button addOrUpdate = new Button("Add / update", e -> save());
+        density.setHelperText(getTranslation("nd.delivery.densityhelper"));
+        Button addOrUpdate = new Button(getTranslation("nd.addupdate"), e -> save());
         addOrUpdate.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         HorizontalLayout form = new HorizontalLayout(date, prescribed, actual, density, addOrUpdate);
         form.setAlignItems(FlexComponent.Alignment.BASELINE);
 
         chartHolder.setWidthFull();
 
-        grid.addColumn(d -> UiFormat.date(d.getMeasuredOn())).setHeader("Date").setAutoWidth(true);
+        grid.addColumn(d -> UiFormat.date(d.getMeasuredOn()))
+                .setHeader(getTranslation("nd.date")).setAutoWidth(true);
         grid.addColumn(d -> UiFormat.number(d.getPrescribedMlPerHour()) + " ml/h")
-                .setHeader("Prescribed").setAutoWidth(true);
+                .setHeader(getTranslation("nd.delivery.col.prescribed")).setAutoWidth(true);
         grid.addColumn(d -> UiFormat.number(d.getActualMlPerHour()) + " ml/h")
-                .setHeader("Actual").setAutoWidth(true);
-        grid.addColumn(NutritionDeliveryDialog::deliveredKcal).setHeader("Delivered").setAutoWidth(true);
-        grid.addComponentColumn(d -> pctPill(d.percentDelivered())).setHeader("% delivered").setAutoWidth(true);
+                .setHeader(getTranslation("nd.delivery.col.actual")).setAutoWidth(true);
+        grid.addColumn(NutritionDeliveryDialog::deliveredKcal)
+                .setHeader(getTranslation("nd.delivery.col.delivered")).setAutoWidth(true);
+        grid.addComponentColumn(d -> pctPill(d.percentDelivered()))
+                .setHeader(getTranslation("nd.delivery.col.pct")).setAutoWidth(true);
         if (SecurityUtils.isAdmin()) {
-            grid.addComponentColumn(d -> new Button("Delete", e -> {
+            grid.addComponentColumn(d -> new Button(getTranslation("common.delete"), e -> {
                 deliveryService.delete(d.getId());
                 refresh();
             })).setHeader("").setAutoWidth(true);
@@ -74,7 +78,7 @@ public class NutritionDeliveryDialog extends Dialog {
         grid.setAllRowsVisible(true);
 
         add(form, chartHolder, grid);
-        getFooter().add(new Button("Close", e -> close()));
+        getFooter().add(new Button(getTranslation("common.close"), e -> close()));
         refresh();
     }
 
@@ -107,7 +111,7 @@ public class NutritionDeliveryDialog extends Dialog {
         if (d.getKcalPerMl() == null || d.getActualMlPerHour() == null) {
             return UiFormat.EMPTY;
         }
-        return Math.round(d.getActualMlPerHour() * 24 * d.getKcalPerMl()) + " kcal/day";
+        return Math.round(d.getActualMlPerHour() * 24 * d.getKcalPerMl()) + " " + I18n.t("unit.kcalday");
     }
 
     /** "% delivered" pill — green ≥90%, orange 70–90% or >110% (under/over), red <70% (marked underfeeding). */
@@ -121,19 +125,19 @@ public class NutritionDeliveryDialog extends Dialog {
         if (pct < 70) {
             bg = "#FCE4E4";
             fg = "#C62828";
-            status = "Marked underfeeding";
+            status = I18n.t("nd.delivery.status.underfeeding");
         } else if (pct < 90) {
             bg = "#FFEBD6";
             fg = "#E65100";
-            status = "Under target";
+            status = I18n.t("nd.delivery.status.under");
         } else if (pct <= 110) {
             bg = "#E6F4EA";
             fg = "#2E7D32";
-            status = "Adequate";
+            status = I18n.t("nd.delivery.status.adequate");
         } else {
             bg = "#FFEBD6";
             fg = "#E65100";
-            status = "Over target";
+            status = I18n.t("nd.delivery.status.over");
         }
         Span pill = new Span(Math.round(pct) + "%");
         pill.getElement().setAttribute("title", status);

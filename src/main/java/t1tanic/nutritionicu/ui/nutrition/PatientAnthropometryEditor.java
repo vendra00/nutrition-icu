@@ -1,4 +1,5 @@
 package t1tanic.nutritionicu.ui.nutrition;
+import t1tanic.nutritionicu.ui.common.I18n;
 import t1tanic.nutritionicu.ui.common.UiFormat;
 
 import com.vaadin.flow.component.button.Button;
@@ -22,18 +23,19 @@ import t1tanic.nutritionicu.ui.common.MetricsTable;
  */
 public class PatientAnthropometryEditor extends Dialog {
 
-    private final NumberField height = new NumberField("Height (cm)");
-    private final NumberField usualWeight = new NumberField("Usual weight (kg)");
-    private final Grid<MetricsTable.Row> metricsGrid = MetricsTable.create("Derived metric");
+    private final NumberField height = new NumberField(I18n.t("nd.anthro.height"));
+    private final NumberField usualWeight = new NumberField(I18n.t("nd.anthro.usualweight"));
+    private final Grid<MetricsTable.Row> metricsGrid = MetricsTable.create(I18n.t("nd.anthro.derived"));
 
     public PatientAnthropometryEditor(Patient patient,
                                       NutritionService nutritionService,
                                       Runnable onSaved) {
-        setHeaderTitle("Anthropometry · " + patient.getFullName());
+        setHeaderTitle(getTranslation("nd.anthro.title", patient.getFullName()));
         setWidth("420px");
 
-        add(new Span("Sex: " + patient.getSex() + "  ·  Age: " + UiFormat.ageYears(patient)
-                + "  ·  Current weight: " + UiFormat.number(patient.getCurrentWeightKg()) + " kg"));
+        String sex = patient.getSex() == null ? "" : getTranslation("sex." + patient.getSex().name());
+        add(new Span(getTranslation("nd.anthro.summary", sex, UiFormat.ageYears(patient),
+                UiFormat.number(patient.getCurrentWeightKg()))));
 
         setValueIfPresent(height, patient.getHeightCm());
         setValueIfPresent(usualWeight, patient.getUsualWeightKg());
@@ -48,8 +50,8 @@ public class PatientAnthropometryEditor extends Dialog {
         add(form, metricsGrid);
         recompute(patient, nutritionService);
 
-        Button cancel = new Button("Cancel", e -> close());
-        Button save = new Button("Save", e -> {
+        Button cancel = new Button(getTranslation("common.cancel"), e -> close());
+        Button save = new Button(getTranslation("common.save"), e -> {
             nutritionService.updateAnthropometry(patient.getId(), height.getValue(), usualWeight.getValue());
             onSaved.run();
             close();
@@ -68,10 +70,10 @@ public class PatientAnthropometryEditor extends Dialog {
 
         NutritionMetrics m = nutritionService.metricsFor(draft);
         metricsGrid.setItems(List.of(
-                new MetricsTable.Row("BMI", UiFormat.number(m.bmi()), m.bmi()),
-                new MetricsTable.Row("Ideal body weight", UiFormat.number(m.idealBodyWeightKg()) + " kg"),
-                new MetricsTable.Row("Adjusted body weight", UiFormat.number(m.adjustedBodyWeightKg()) + " kg"),
-                new MetricsTable.Row("Recent weight loss", UiFormat.number(m.weightLossPercent()) + " %")));
+                new MetricsTable.Row(getTranslation("nd.metric.bmi"), UiFormat.number(m.bmi()), m.bmi()),
+                new MetricsTable.Row(getTranslation("nd.metric.ibw"), UiFormat.number(m.idealBodyWeightKg()) + " kg"),
+                new MetricsTable.Row(getTranslation("nd.metric.abw"), UiFormat.number(m.adjustedBodyWeightKg()) + " kg"),
+                new MetricsTable.Row(getTranslation("nd.metric.weightloss"), UiFormat.number(m.weightLossPercent()) + " %")));
     }
 
     private static void setValueIfPresent(NumberField field, Double value) {

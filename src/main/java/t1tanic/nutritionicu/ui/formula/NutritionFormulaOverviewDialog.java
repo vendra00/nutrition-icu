@@ -1,4 +1,5 @@
 package t1tanic.nutritionicu.ui.formula;
+import t1tanic.nutritionicu.ui.common.I18n;
 import t1tanic.nutritionicu.ui.common.MetricsTable;
 import t1tanic.nutritionicu.ui.common.UiFormat;
 
@@ -13,20 +14,20 @@ import t1tanic.nutritionicu.model.NutritionProduct;
 public class NutritionFormulaOverviewDialog extends Dialog {
 
     public NutritionFormulaOverviewDialog(NutritionProduct p) {
-        setHeaderTitle("Formula · " + p.getName());
+        setHeaderTitle(getTranslation("foverview.title", p.getName()));
         setWidth("560px");
 
         VerticalLayout content = new VerticalLayout(
-                section("Identity", identityTable(p)),
-                section("Composition (per 100 ml)", compositionTable(p)),
-                section("Electrolytes (mg / 100 ml)", electrolyteTable(p)),
-                section("Other", otherTable(p)));
+                section(getTranslation("foverview.identity"), identityTable(p)),
+                section(getTranslation("foverview.composition"), compositionTable(p)),
+                section(getTranslation("foverview.electrolytes"), electrolyteTable(p)),
+                section(getTranslation("foverview.other"), otherTable(p)));
         content.setPadding(false);
         content.setSpacing(false);
         content.getStyle().set("gap", "var(--lumo-space-m)");
         add(content);
 
-        getFooter().add(new Button("Close", e -> close()));
+        getFooter().add(new Button(getTranslation("common.close"), e -> close()));
     }
 
     private static VerticalLayout section(String title, Grid<MetricsTable.Row> table) {
@@ -41,44 +42,46 @@ public class NutritionFormulaOverviewDialog extends Dialog {
     }
 
     private static Grid<MetricsTable.Row> identityTable(NutritionProduct p) {
-        Grid<MetricsTable.Row> grid = MetricsTable.create("Field");
+        Grid<MetricsTable.Row> grid = MetricsTable.create(I18n.t("foverview.field"));
         grid.setItems(
-                new MetricsTable.Row("Code", p.getCode()),
-                new MetricsTable.Row("Name", p.getName()),
-                new MetricsTable.Row("Type", p.getCategory() == null ? UiFormat.EMPTY : p.getCategory().label()),
-                MetricsTable.Row.badge("Source", p.isBuiltIn() ? "Built-in" : "Hospital",
+                new MetricsTable.Row(I18n.t("foverview.code"), p.getCode()),
+                new MetricsTable.Row(I18n.t("foverview.name"), p.getName()),
+                new MetricsTable.Row(I18n.t("foverview.type"),
+                        p.getCategory() == null ? UiFormat.EMPTY : I18n.t("category." + p.getCategory().name())),
+                MetricsTable.Row.badge(I18n.t("foverview.source"),
+                        I18n.t(p.isBuiltIn() ? "formula.source.builtin" : "formula.source.hospital"),
                         p.isBuiltIn() ? "contrast" : "success"));
         return grid;
     }
 
     private static Grid<MetricsTable.Row> compositionTable(NutritionProduct p) {
-        Grid<MetricsTable.Row> grid = MetricsTable.create("Component");
+        Grid<MetricsTable.Row> grid = MetricsTable.create(I18n.t("foverview.component"));
         grid.setItems(
-                new MetricsTable.Row("Density", UiFormat.number(p.getDensityKcalPerMl()) + " kcal/ml"),
-                new MetricsTable.Row("Protein", UiFormat.number(p.getProteinPer100ml()) + " g"),
-                new MetricsTable.Row("Carbohydrate", UiFormat.number(p.getCarbsPer100ml()) + " g"),
-                new MetricsTable.Row("Fat", UiFormat.number(p.getFatPer100ml()) + " g"),
-                new MetricsTable.Row("Fibre", UiFormat.number(p.getFiberPer100ml()) + " g"));
+                new MetricsTable.Row(I18n.t("foverview.density"), UiFormat.number(p.getDensityKcalPerMl()) + " kcal/ml"),
+                new MetricsTable.Row(I18n.t("foverview.protein"), UiFormat.number(p.getProteinPer100ml()) + " g"),
+                new MetricsTable.Row(I18n.t("foverview.carbohydrate"), UiFormat.number(p.getCarbsPer100ml()) + " g"),
+                new MetricsTable.Row(I18n.t("foverview.fat"), UiFormat.number(p.getFatPer100ml()) + " g"),
+                new MetricsTable.Row(I18n.t("foverview.fibre"), UiFormat.number(p.getFiberPer100ml()) + " g"));
         return grid;
     }
 
     private static Grid<MetricsTable.Row> electrolyteTable(NutritionProduct p) {
-        Grid<MetricsTable.Row> grid = MetricsTable.create("Electrolyte");
+        Grid<MetricsTable.Row> grid = MetricsTable.create(I18n.t("foverview.electrolyte"));
         grid.setItems(
-                new MetricsTable.Row("Sodium (Na)", UiFormat.number(p.getSodiumMgPer100ml())),
-                new MetricsTable.Row("Potassium (K)", UiFormat.number(p.getPotassiumMgPer100ml())),
-                new MetricsTable.Row("Chloride (Cl)", UiFormat.number(p.getChlorideMgPer100ml())),
-                new MetricsTable.Row("Magnesium (Mg)", UiFormat.number(p.getMagnesiumMgPer100ml())),
-                new MetricsTable.Row("Calcium (Ca)", UiFormat.number(p.getCalciumMgPer100ml())),
-                new MetricsTable.Row("Phosphorus (P)", UiFormat.number(p.getPhosphorusMgPer100ml())));
+                new MetricsTable.Row(I18n.t("energy.reg.na"), UiFormat.number(p.getSodiumMgPer100ml())),
+                new MetricsTable.Row(I18n.t("energy.reg.k"), UiFormat.number(p.getPotassiumMgPer100ml())),
+                new MetricsTable.Row(I18n.t("energy.reg.cl"), UiFormat.number(p.getChlorideMgPer100ml())),
+                new MetricsTable.Row(I18n.t("energy.reg.mg"), UiFormat.number(p.getMagnesiumMgPer100ml())),
+                new MetricsTable.Row(I18n.t("energy.reg.ca"), UiFormat.number(p.getCalciumMgPer100ml())),
+                new MetricsTable.Row(I18n.t("energy.reg.p"), UiFormat.number(p.getPhosphorusMgPer100ml())));
         return grid;
     }
 
     private static Grid<MetricsTable.Row> otherTable(NutritionProduct p) {
-        Grid<MetricsTable.Row> grid = MetricsTable.create("Field");
+        Grid<MetricsTable.Row> grid = MetricsTable.create(I18n.t("foverview.field"));
         grid.setItems(
-                new MetricsTable.Row("Osmolarity", nz(p.getOsmolarity())),
-                new MetricsTable.Row("Indications", nz(p.getIndications())));
+                new MetricsTable.Row(I18n.t("foverview.osmolarity"), nz(p.getOsmolarity())),
+                new MetricsTable.Row(I18n.t("foverview.indications"), nz(p.getIndications())));
         return grid;
     }
 

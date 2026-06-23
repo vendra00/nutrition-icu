@@ -5,7 +5,7 @@ import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.tabs.Tab;
 import com.vaadin.flow.component.tabs.Tabs;
-import com.vaadin.flow.router.PageTitle;
+import com.vaadin.flow.router.HasDynamicTitle;
 import com.vaadin.flow.router.Route;
 import jakarta.annotation.security.PermitAll;
 import t1tanic.nutritionicu.service.nutrition.EnergyAssessmentService;
@@ -21,9 +21,13 @@ import t1tanic.nutritionicu.service.patient.PatientService;
  * same nutrition administration plan.
  */
 @Route(value = "energy", layout = MainLayout.class)
-@PageTitle("Energy · ICU Nutrition")
 @PermitAll
-public class EnergyView extends VerticalLayout {
+public class EnergyView extends VerticalLayout implements HasDynamicTitle {
+
+    @Override
+    public String getPageTitle() {
+        return getTranslation("energy.title") + " · " + getTranslation("app.title");
+    }
 
     public EnergyView(PatientService patientService,
                       NutritionService nutritionService,
@@ -33,7 +37,7 @@ public class EnergyView extends VerticalLayout {
                       NutritionFormulary formulary) {
         setWidthFull();
         setPadding(true);
-        add(new H2("Energy expenditure"));
+        add(new H2(getTranslation("energy.title")));
 
         HarrisBenedictView harrisBenedict = new HarrisBenedictView(
                 patientService, nutritionService, calculator, energyService, regimenCalculator, formulary);
@@ -41,9 +45,9 @@ public class EnergyView extends VerticalLayout {
                 patientService, nutritionService, energyService, regimenCalculator, formulary);
         EnergyComparisonView comparison = new EnergyComparisonView(patientService, energyService);
 
-        Tab hbTab = new Tab("Harris-Benedict");
-        Tab calorimetryTab = new Tab("Calorimetry");
-        Tab comparisonTab = new Tab("Comparison");
+        Tab hbTab = new Tab(getTranslation("energy.tab.hb"));
+        Tab calorimetryTab = new Tab(getTranslation("energy.tab.calorimetry"));
+        Tab comparisonTab = new Tab(getTranslation("energy.tab.comparison"));
         Tabs tabs = new Tabs(hbTab, calorimetryTab, comparisonTab);
         tabs.setWidthFull();
 

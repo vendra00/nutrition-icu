@@ -16,7 +16,7 @@ import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.provider.CallbackDataProvider;
 import com.vaadin.flow.data.provider.DataProvider;
 import com.vaadin.flow.data.value.ValueChangeMode;
-import com.vaadin.flow.router.PageTitle;
+import com.vaadin.flow.router.HasDynamicTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.theme.lumo.LumoUtility;
 import jakarta.annotation.security.PermitAll;
@@ -27,12 +27,17 @@ import t1tanic.nutritionicu.dto.DashboardStats;
 import t1tanic.nutritionicu.model.enums.AlertSeverity;
 import t1tanic.nutritionicu.service.alert.AlertService;
 import t1tanic.nutritionicu.service.dashboard.DashboardService;
+import t1tanic.nutritionicu.ui.common.I18n;
 
 /** Landing overview: headline metrics, cohort breakdown charts and the most recent alerts. */
 @Route(value = "", layout = MainLayout.class)
-@PageTitle("Dashboard · ICU Nutrition")
 @PermitAll
-public class DashboardView extends VerticalLayout {
+public class DashboardView extends VerticalLayout implements HasDynamicTitle {
+
+    @Override
+    public String getPageTitle() {
+        return getTranslation("dashboard.title") + " · " + getTranslation("app.title");
+    }
 
     private static final String RED = "#C62828";
     private static final String GREEN = "#2E7D32";
@@ -50,30 +55,33 @@ public class DashboardView extends VerticalLayout {
         setSpacing(true);
 
         DashboardStats s = dashboardService.stats();
-        add(new H2("Dashboard"));
+        add(new H2(getTranslation("dashboard.title")));
 
         add(row(
-                statCard("Monitored patients", String.valueOf(s.monitoredPatients()),
+                statCard(getTranslation("dashboard.monitored"), String.valueOf(s.monitoredPatients()),
                         "var(--lumo-primary-text-color)"),
-                statCard("Active alerts", String.valueOf(s.activeAlerts()), s.activeAlerts() > 0 ? RED : GREEN),
-                statCard("High NUTRIC risk", String.valueOf(s.highRisk()), s.highRisk() > 0 ? RED : GREEN),
-                statCard("Avg delivery", s.avgPercentDelivered() == null ? "—" : s.avgPercentDelivered() + "%",
+                statCard(getTranslation("dashboard.activealerts"), String.valueOf(s.activeAlerts()),
+                        s.activeAlerts() > 0 ? RED : GREEN),
+                statCard(getTranslation("dashboard.highrisk"), String.valueOf(s.highRisk()),
+                        s.highRisk() > 0 ? RED : GREEN),
+                statCard(getTranslation("dashboard.avgdelivery"),
+                        s.avgPercentDelivered() == null ? "—" : s.avgPercentDelivered() + "%",
                         deliveryColor(s.avgPercentDelivered()))));
 
         add(row(
-                chartCard("Nutritional risk (NUTRIC)", new Donut(List.of(
-                        new Donut.Slice("High risk", s.highRisk(), RED),
-                        new Donut.Slice("Low risk", s.lowRisk(), GREEN),
-                        new Donut.Slice("Not assessed", s.notAssessed(), GREY)),
+                chartCard(getTranslation("dashboard.nutricrisk"), new Donut(List.of(
+                        new Donut.Slice(getTranslation("risk.high"), s.highRisk(), RED),
+                        new Donut.Slice(getTranslation("risk.low"), s.lowRisk(), GREEN),
+                        new Donut.Slice(getTranslation("risk.notassessed"), s.notAssessed(), GREY)),
                         String.valueOf(s.monitoredPatients()))),
-                chartCard("BMI distribution", new BarList(List.of(
-                        new BarList.Bar("Underweight", s.underweight(), AMBER),
-                        new BarList.Bar("Normal", s.normalWeight(), GREEN),
-                        new BarList.Bar("Overweight", s.overweight(), ORANGE),
-                        new BarList.Bar("Obese", s.obese(), RED)))),
-                chartCard("Alerts by severity", new Donut(List.of(
-                        new Donut.Slice("Critical", s.criticalAlerts(), RED),
-                        new Donut.Slice("Warning", s.warningAlerts(), ORANGE)),
+                chartCard(getTranslation("dashboard.bmidist"), new BarList(List.of(
+                        new BarList.Bar(getTranslation("bmi.underweight"), s.underweight(), AMBER),
+                        new BarList.Bar(getTranslation("bmi.normal"), s.normalWeight(), GREEN),
+                        new BarList.Bar(getTranslation("bmi.overweight"), s.overweight(), ORANGE),
+                        new BarList.Bar(getTranslation("bmi.obese"), s.obese(), RED)))),
+                chartCard(getTranslation("dashboard.alertsbyseverity"), new Donut(List.of(
+                        new Donut.Slice(getTranslation("alertSeverity.CRITICAL"), s.criticalAlerts(), RED),
+                        new Donut.Slice(getTranslation("alertSeverity.WARNING"), s.warningAlerts(), ORANGE)),
                         String.valueOf(s.activeAlerts())))));
 
         add(recentAlertsCard());
@@ -114,12 +122,12 @@ public class DashboardView extends VerticalLayout {
     private Component recentAlertsCard() {
         Grid<AlertSummary> grid = new Grid<>(AlertSummary.class, false);
         Grid.Column<AlertSummary> severityCol = grid.addComponentColumn(DashboardView::severityBadge)
-                .setHeader("Severity").setAutoWidth(true);
+                .setHeader(getTranslation("alerts.col.severity")).setAutoWidth(true);
         Grid.Column<AlertSummary> patientCol = grid.addColumn(AlertSummary::patientMrn)
-                .setHeader("Patient (NHC)").setAutoWidth(true);
-        grid.addColumn(AlertSummary::sectors).setHeader("Sectors").setAutoWidth(true);
+                .setHeader(getTranslation("alerts.col.patient")).setAutoWidth(true);
+        grid.addColumn(a -> sectorsText(a.sectors())).setHeader(getTranslation("alerts.col.sectors")).setAutoWidth(true);
         Grid.Column<AlertSummary> detailsCol = grid.addColumn(AlertSummary::message)
-                .setHeader("Details").setFlexGrow(3);
+                .setHeader(getTranslation("alerts.col.details")).setFlexGrow(3);
         grid.setHeight("420px");
 
         // Lazy loading: the grid fetches pages from the backend as it scrolls, not all at once.
@@ -132,12 +140,12 @@ public class DashboardView extends VerticalLayout {
         HeaderRow filterRow = grid.appendHeaderRow();
         ComboBox<AlertSeverity> severity = new ComboBox<>();
         severity.setItems(AlertSeverity.values());
-        severity.setItemLabelGenerator(AlertSeverity::name);
-        severity.setPlaceholder("All");
+        severity.setItemLabelGenerator(v -> getTranslation("alertSeverity." + v.name()));
+        severity.setPlaceholder(getTranslation("filter.all"));
         severity.setClearButtonVisible(true);
         severity.setWidthFull();
-        TextField patient = filterField("NHC…");
-        TextField details = filterField("Search…");
+        TextField patient = filterField(getTranslation("filter.nhc"));
+        TextField details = filterField(getTranslation("filter.search"));
 
         Runnable apply = () -> {
             alertFilter = new AlertFilter(severity.getValue(), null,
@@ -151,7 +159,7 @@ public class DashboardView extends VerticalLayout {
         filterRow.getCell(patientCol).setComponent(patient);
         filterRow.getCell(detailsCol).setComponent(details);
 
-        H3 heading = new H3("Recent alerts");
+        H3 heading = new H3(getTranslation("dashboard.recentalerts"));
         heading.addClassNames(LumoUtility.FontSize.MEDIUM, LumoUtility.Margin.NONE);
         VerticalLayout card = new VerticalLayout(heading, grid);
         card.setPadding(true);
@@ -173,8 +181,23 @@ public class DashboardView extends VerticalLayout {
         return value == null || value.isBlank() ? null : value.strip();
     }
 
+    private String sectorsText(String joined) {
+        if (joined == null || joined.isBlank()) {
+            return "";
+        }
+        String[] parts = joined.split(",\\s*");
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < parts.length; i++) {
+            if (i > 0) {
+                sb.append(", ");
+            }
+            sb.append(getTranslation("sector." + parts[i].strip()));
+        }
+        return sb.toString();
+    }
+
     private static Span severityBadge(AlertSummary alert) {
-        Span badge = new Span(alert.severity());
+        Span badge = new Span(I18n.t("alertSeverity." + alert.severity()));
         badge.getElement().getThemeList().add("badge " + ("CRITICAL".equals(alert.severity()) ? "error" : "warning"));
         return badge;
     }

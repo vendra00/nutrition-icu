@@ -58,7 +58,8 @@ public final class MetricsTable {
     public static Grid<Row> create(String metricHeader) {
         Grid<Row> grid = new Grid<>();
         grid.addColumn(Row::metric).setHeader(metricHeader).setAutoWidth(true).setFlexGrow(0);
-        grid.addComponentColumn(Row::valueComponent).setHeader("Value").setAutoWidth(true).setFlexGrow(1);
+        grid.addComponentColumn(Row::valueComponent).setHeader(I18n.t("common.value"))
+                .setAutoWidth(true).setFlexGrow(1);
         grid.setAllRowsVisible(true);
         grid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES, GridVariant.LUMO_COMPACT);
         return grid;

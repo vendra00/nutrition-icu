@@ -15,10 +15,13 @@ class MetabolicInterpreterTest {
     private final MetabolicInterpreter interpreter = new MetabolicInterpreter();
     private static final LabTrend NO_DATA = new LabTrend(List.of());
 
+    // The interpreter resolves text through the i18n provider; with no UI bound in tests, getTranslation
+    // returns the key itself, so each branch is identified by its distinct translation key.
+
     @Test
     void phaseReportsInsufficientDataWithoutCrp() {
         Interpretation result = interpreter.phase(NO_DATA, NO_DATA);
-        assertThat(result.text()).contains("insufficient CRP data");
+        assertThat(result.text()).isEqualTo("metabolic.phase.nodata");
         assertThat(result.theme()).isEqualTo("contrast");
     }
 
@@ -26,7 +29,7 @@ class MetabolicInterpreterTest {
     void phaseFlagsEbbWhenCrpElevatedAndRising() {
         LabTrend crp = crp(50.0, 120.0); // rising, above ref 10
         Interpretation result = interpreter.phase(crp, NO_DATA);
-        assertThat(result.text()).contains("Ebb phase").contains("Avoid aggressive caloric load");
+        assertThat(result.text()).isEqualTo("metabolic.phase.ebb");
         assertThat(result.theme()).isEqualTo("error");
     }
 
@@ -34,7 +37,7 @@ class MetabolicInterpreterTest {
     void phaseFlagsTransitionToFlowWhenElevatedButFalling() {
         LabTrend crp = crp(120.0, 50.0); // falling, still above ref
         Interpretation result = interpreter.phase(crp, NO_DATA);
-        assertThat(result.text()).contains("Transition to Flow");
+        assertThat(result.text()).isEqualTo("metabolic.phase.transition");
         assertThat(result.theme()).isEqualTo("warning");
     }
 
@@ -42,7 +45,7 @@ class MetabolicInterpreterTest {
     void phaseAsksForFollowUpWhenElevatedWithSingleReading() {
         LabTrend crp = crp(50.0); // elevated, no trend
         Interpretation result = interpreter.phase(crp, NO_DATA);
-        assertThat(result.text()).contains("add a follow-up reading");
+        assertThat(result.text()).isEqualTo("metabolic.phase.elevated");
         assertThat(result.theme()).isEqualTo("warning");
     }
 
@@ -50,7 +53,7 @@ class MetabolicInterpreterTest {
     void phaseFlagsFlowWindowWhenInflammationLow() {
         LabTrend crp = crp(3.0); // below ref 10
         Interpretation result = interpreter.phase(crp, NO_DATA);
-        assertThat(result.text()).contains("Flow phase").contains("anabolic window");
+        assertThat(result.text()).isEqualTo("metabolic.phase.flow");
         assertThat(result.theme()).isEqualTo("success");
     }
 
@@ -59,14 +62,14 @@ class MetabolicInterpreterTest {
         LabTrend crp = crp(3.0);                 // would be Flow/success on its own
         LabTrend pct = trend(ref(0.0, 0.5), 2.0); // elevated PCT
         Interpretation result = interpreter.phase(crp, pct);
-        assertThat(result.text()).contains("Flow phase").contains("consider ongoing sepsis");
+        assertThat(result.text()).contains("metabolic.phase.flow").contains("metabolic.phase.pct");
         assertThat(result.theme()).isEqualTo("error");
     }
 
     @Test
     void recoveryReportsNoDataWithoutPrealbumin() {
         Interpretation result = interpreter.recovery(NO_DATA, NO_DATA);
-        assertThat(result.text()).contains("no prealbumin data");
+        assertThat(result.text()).isEqualTo("metabolic.recovery.nodata");
         assertThat(result.theme()).isEqualTo("contrast");
     }
 
@@ -75,14 +78,14 @@ class MetabolicInterpreterTest {
         LabTrend crp = crp(50.0, 120.0); // elevated, rising -> not settling
         LabTrend prealbumin = prealbumin(15.0, 18.0);
         Interpretation result = interpreter.recovery(crp, prealbumin);
-        assertThat(result.text()).contains("not interpretable while CRP is elevated/rising");
+        assertThat(result.text()).isEqualTo("metabolic.recovery.notinterpretable");
         assertThat(result.theme()).isEqualTo("contrast");
     }
 
     @Test
     void recoveryNeedsAnotherReadingWithSinglePrealbumin() {
         Interpretation result = interpreter.recovery(NO_DATA, prealbumin(15.0));
-        assertThat(result.text()).contains("single prealbumin reading").contains("needs another");
+        assertThat(result.text()).isEqualTo("metabolic.recovery.single");
         assertThat(result.theme()).isEqualTo("contrast");
     }
 
@@ -91,7 +94,7 @@ class MetabolicInterpreterTest {
         LabTrend crp = crp(120.0, 50.0); // settling (falling)
         LabTrend prealbumin = prealbumin(12.0, 18.0); // rising
         Interpretation result = interpreter.recovery(crp, prealbumin);
-        assertThat(result.text()).contains("recovery underway");
+        assertThat(result.text()).isEqualTo("metabolic.recovery.rising");
         assertThat(result.theme()).isEqualTo("success");
     }
 
@@ -100,7 +103,7 @@ class MetabolicInterpreterTest {
         LabTrend crp = crp(3.0); // low -> settling
         LabTrend prealbumin = prealbumin(15.0, 15.0); // flat
         Interpretation result = interpreter.recovery(crp, prealbumin);
-        assertThat(result.text()).contains("not yet rising");
+        assertThat(result.text()).isEqualTo("metabolic.recovery.notrising");
         assertThat(result.theme()).isEqualTo("warning");
     }
 

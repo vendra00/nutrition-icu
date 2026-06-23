@@ -1,4 +1,5 @@
 package t1tanic.nutritionicu.ui.formula;
+import t1tanic.nutritionicu.ui.common.I18n;
 import t1tanic.nutritionicu.ui.common.UiFormat;
 import t1tanic.nutritionicu.ui.MainLayout;
 
@@ -17,7 +18,7 @@ import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.value.ValueChangeMode;
-import com.vaadin.flow.router.PageTitle;
+import com.vaadin.flow.router.HasDynamicTitle;
 import com.vaadin.flow.router.Route;
 import jakarta.annotation.security.RolesAllowed;
 import t1tanic.nutritionicu.model.NutritionProduct;
@@ -26,20 +27,21 @@ import t1tanic.nutritionicu.service.nutrition.NutritionFormulary;
 
 /** Catalog of nutrition formulas: inspect (click the code), add, edit or remove. */
 @Route(value = "nutrition-formula", layout = MainLayout.class)
-@PageTitle("Nutrition formula · ICU Nutrition")
 @RolesAllowed("ADMIN")
-public class NutritionFormulaView extends VerticalLayout {
+public class NutritionFormulaView extends VerticalLayout implements HasDynamicTitle {
 
-    private static final String BUILT_IN = "Built-in";
-    private static final String HOSPITAL = "Hospital";
+    @Override
+    public String getPageTitle() {
+        return getTranslation("formula.title") + " · " + getTranslation("app.title");
+    }
 
     private final transient NutritionFormulary formulary;
     private final Grid<NutritionProduct> grid = new Grid<>(NutritionProduct.class, false);
 
-    private final TextField codeFilter = filterField("Code…");
-    private final TextField nameFilter = filterField("Name…");
+    private final TextField codeFilter = filterField(I18n.t("formula.filter.code"));
+    private final TextField nameFilter = filterField(I18n.t("formula.filter.name"));
     private final ComboBox<NutritionCategory> typeFilter = new ComboBox<>();
-    private final ComboBox<String> sourceFilter = new ComboBox<>();
+    private final ComboBox<Boolean> sourceFilter = new ComboBox<>();
 
     private transient GridListDataView<NutritionProduct> dataView;
 
@@ -48,28 +50,28 @@ public class NutritionFormulaView extends VerticalLayout {
         setSizeFull();
         setPadding(true);
 
-        Button newFormula = new Button("New formula", e ->
+        Button newFormula = new Button(getTranslation("formula.new"), e ->
                 new NutritionFormulaEditor(null, formulary, this::refresh).open());
         newFormula.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        HorizontalLayout header = new HorizontalLayout(new H2("Nutrition formulas"), newFormula);
+        HorizontalLayout header = new HorizontalLayout(new H2(getTranslation("formula.title")), newFormula);
         header.setWidthFull();
         header.setAlignItems(Alignment.CENTER);
         header.setJustifyContentMode(JustifyContentMode.BETWEEN);
         add(header);
 
         Grid.Column<NutritionProduct> codeCol = grid.addComponentColumn(this::codeLink)
-                .setHeader("Code").setAutoWidth(true);
+                .setHeader(getTranslation("formula.col.code")).setAutoWidth(true);
         Grid.Column<NutritionProduct> nameCol = grid.addColumn(NutritionProduct::getName)
-                .setHeader("Name").setFlexGrow(2);
-        Grid.Column<NutritionProduct> typeCol = grid.addColumn(p -> p.getCategory().label())
-                .setHeader("Type").setAutoWidth(true);
+                .setHeader(getTranslation("formula.col.name")).setFlexGrow(2);
+        Grid.Column<NutritionProduct> typeCol = grid.addColumn(p -> getTranslation("category." + p.getCategory().name()))
+                .setHeader(getTranslation("formula.col.type")).setAutoWidth(true);
         grid.addColumn(p -> UiFormat.number(p.getDensityKcalPerMl()) + " kcal/ml")
-                .setHeader("Density").setAutoWidth(true);
-        grid.addColumn(p -> UiFormat.number(p.getProteinPer100ml())).setHeader("Protein /100ml").setAutoWidth(true);
-        grid.addColumn(p -> UiFormat.number(p.getCarbsPer100ml())).setHeader("Carbs /100ml").setAutoWidth(true);
-        grid.addColumn(p -> UiFormat.number(p.getFatPer100ml())).setHeader("Fat /100ml").setAutoWidth(true);
-        Grid.Column<NutritionProduct> sourceCol = grid.addColumn(p -> p.isBuiltIn() ? BUILT_IN : HOSPITAL)
-                .setHeader("Source").setAutoWidth(true);
+                .setHeader(getTranslation("formula.col.density")).setAutoWidth(true);
+        grid.addColumn(p -> UiFormat.number(p.getProteinPer100ml())).setHeader(getTranslation("formula.col.protein")).setAutoWidth(true);
+        grid.addColumn(p -> UiFormat.number(p.getCarbsPer100ml())).setHeader(getTranslation("formula.col.carbs")).setAutoWidth(true);
+        grid.addColumn(p -> UiFormat.number(p.getFatPer100ml())).setHeader(getTranslation("formula.col.fat")).setAutoWidth(true);
+        Grid.Column<NutritionProduct> sourceCol = grid.addColumn(this::sourceText)
+                .setHeader(getTranslation("formula.col.source")).setAutoWidth(true);
         grid.addComponentColumn(this::actions).setHeader("").setAutoWidth(true);
 
         dataView = grid.setItems(formulary.all());
@@ -82,13 +84,14 @@ public class NutritionFormulaView extends VerticalLayout {
     private void configureFilters(Grid.Column<NutritionProduct> codeCol, Grid.Column<NutritionProduct> nameCol,
                                   Grid.Column<NutritionProduct> typeCol, Grid.Column<NutritionProduct> sourceCol) {
         typeFilter.setItems(NutritionCategory.values());
-        typeFilter.setItemLabelGenerator(NutritionCategory::label);
-        typeFilter.setPlaceholder("All");
+        typeFilter.setItemLabelGenerator(c -> getTranslation("category." + c.name()));
+        typeFilter.setPlaceholder(getTranslation("filter.all"));
         typeFilter.setClearButtonVisible(true);
         typeFilter.setWidthFull();
 
-        sourceFilter.setItems(BUILT_IN, HOSPITAL);
-        sourceFilter.setPlaceholder("All");
+        sourceFilter.setItems(Boolean.TRUE, Boolean.FALSE);
+        sourceFilter.setItemLabelGenerator(b -> getTranslation(b ? "formula.source.builtin" : "formula.source.hospital"));
+        sourceFilter.setPlaceholder(getTranslation("filter.all"));
         sourceFilter.setClearButtonVisible(true);
         sourceFilter.setWidthFull();
 
@@ -118,8 +121,12 @@ public class NutritionFormulaView extends VerticalLayout {
         if (typeFilter.getValue() != null && product.getCategory() != typeFilter.getValue()) {
             return false;
         }
-        String source = sourceFilter.getValue();
-        return source == null || product.isBuiltIn() == BUILT_IN.equals(source);
+        Boolean builtIn = sourceFilter.getValue();
+        return builtIn == null || product.isBuiltIn() == builtIn;
+    }
+
+    private String sourceText(NutritionProduct product) {
+        return getTranslation(product.isBuiltIn() ? "formula.source.builtin" : "formula.source.hospital");
     }
 
     private static boolean containsIgnoreCase(String value, String filter) {
@@ -146,19 +153,19 @@ public class NutritionFormulaView extends VerticalLayout {
     }
 
     private Component actions(NutritionProduct product) {
-        Button edit = new Button("Edit", e ->
+        Button edit = new Button(getTranslation("common.edit"), e ->
                 new NutritionFormulaEditor(product, formulary, this::refresh).open());
-        Button delete = new Button("Delete", e -> confirmDelete(product));
+        Button delete = new Button(getTranslation("common.delete"), e -> confirmDelete(product));
         return new HorizontalLayout(edit, delete);
     }
 
     private void confirmDelete(NutritionProduct product) {
         ConfirmDialog confirm = new ConfirmDialog();
-        confirm.setHeader("Delete formula");
-        confirm.setText("Delete \"%s\" (%s)?%s".formatted(product.getName(), product.getCode(),
-                product.isBuiltIn() ? " This built-in formula will reappear on the next restart." : ""));
+        confirm.setHeader(getTranslation("formula.delete.header"));
+        String note = product.isBuiltIn() ? getTranslation("formula.delete.builtinnote") : "";
+        confirm.setText(getTranslation("formula.delete.text", product.getName(), product.getCode(), note));
         confirm.setCancelable(true);
-        confirm.setConfirmText("Delete");
+        confirm.setConfirmText(getTranslation("common.delete"));
         confirm.setConfirmButtonTheme("error primary");
         confirm.addConfirmListener(e -> {
             formulary.delete(product.getId());

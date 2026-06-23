@@ -2,6 +2,7 @@ package t1tanic.nutritionicu.ui.insights;
 import t1tanic.nutritionicu.ui.MainLayout;
 import t1tanic.nutritionicu.ui.common.BarList;
 import t1tanic.nutritionicu.ui.common.Donut;
+import t1tanic.nutritionicu.ui.common.I18n;
 import t1tanic.nutritionicu.ui.common.TrendChart;
 
 import com.vaadin.flow.component.Component;
@@ -28,7 +29,7 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.progressbar.ProgressBar;
 import com.vaadin.flow.component.tabs.Tab;
 import com.vaadin.flow.component.tabs.Tabs;
-import com.vaadin.flow.router.PageTitle;
+import com.vaadin.flow.router.HasDynamicTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.server.streams.DownloadHandler;
 import com.vaadin.flow.server.streams.DownloadResponse;
@@ -68,22 +69,26 @@ import t1tanic.nutritionicu.service.patient.PatientService;
  * answer (no API call) and earlier analyses can be reviewed and compared. Decision support only.
  */
 @Route(value = "insights", layout = MainLayout.class)
-@PageTitle("Insights · ICU Nutrition")
 @PermitAll
-public class InsightsView extends VerticalLayout {
+public class InsightsView extends VerticalLayout implements HasDynamicTitle {
+
+    @Override
+    public String getPageTitle() {
+        return getTranslation("insights.title") + " · " + getTranslation("app.title");
+    }
 
     /** Nutrition labs charted under Trends, in clinical priority order; the first few with data are shown. */
     private static final Map<String, String> CHART_LABS = new LinkedHashMap<>();
 
     static {
-        CHART_LABS.put("GLUCOSE", "Glucose");
-        CHART_LABS.put("CRP", "C-reactive protein");
-        CHART_LABS.put("PHOSPHATE", "Phosphate");
-        CHART_LABS.put("POTASSIUM", "Potassium");
-        CHART_LABS.put("ALBUMIN", "Albumin");
-        CHART_LABS.put("PREALBUMIN", "Prealbumin");
-        CHART_LABS.put("MAGNESIUM", "Magnesium");
-        CHART_LABS.put("UREA", "Urea");
+        CHART_LABS.put("GLUCOSE", "analyte.glucose");
+        CHART_LABS.put("CRP", "analyte.crp");
+        CHART_LABS.put("PHOSPHATE", "analyte.phosphate");
+        CHART_LABS.put("POTASSIUM", "analyte.potassium");
+        CHART_LABS.put("ALBUMIN", "analyte.albumin");
+        CHART_LABS.put("PREALBUMIN", "analyte.prealbumin");
+        CHART_LABS.put("MAGNESIUM", "analyte.magnesium");
+        CHART_LABS.put("UREA", "analyte.urea");
     }
 
     private static final int MAX_LAB_CHARTS = 6;
@@ -103,10 +108,10 @@ public class InsightsView extends VerticalLayout {
     private final transient EnergyAssessmentService energyService;
     private final transient NutritionDeliveryService deliveryService;
 
-    private final ComboBox<InsightLanguage> languagePicker = new ComboBox<>("Language");
-    private final Button generate = new Button("Generate insights");
-    private final Button compare = new Button("Compare similar patients");
-    private final Button archive = new Button("Archive as case");
+    private final ComboBox<InsightLanguage> languagePicker = new ComboBox<>(I18n.t("insights.language"));
+    private final Button generate = new Button(I18n.t("insights.generate"));
+    private final Button compare = new Button(I18n.t("insights.compare"));
+    private final Button archive = new Button(I18n.t("insights.archive"));
     private final Span archiveInfo = new Span();
     private final ProgressBar progress = new ProgressBar();
     private final Details trends = new Details();
@@ -115,7 +120,7 @@ public class InsightsView extends VerticalLayout {
     private final Div resultCard = new Div(result);
     private final Details grounding = new Details();
     private final Pre sent = new Pre();
-    private final Details sentDetails = new Details("Data sent to the model (de-identified)", sent);
+    private final Details sentDetails = new Details(I18n.t("insights.sentdetails"), sent);
     private final Div historyContainer = new Div();
 
     public InsightsView(InsightService insightService, PatientCaseService patientCaseService,
@@ -132,17 +137,14 @@ public class InsightsView extends VerticalLayout {
         setSpacing(true);
         setWidthFull();
 
-        add(new H2("Insights"));
-        Paragraph intro = new Paragraph("Select a monitored patient to see their nutrition trend charts, "
-                + "and let Claude analyse a de-identified snapshot (labs over time, anthropometry, NUTRIC "
-                + "risk, energy assessments and feed delivery) for trends and suggested actions.");
+        add(new H2(getTranslation("insights.title")));
+        Paragraph intro = new Paragraph(getTranslation("insights.intro"));
         intro.addClassNames(LumoUtility.TextColor.SECONDARY);
-        Paragraph disclaimer = new Paragraph("Decision support only — not a prescription. No name or NHC "
-                + "is sent; the exact data shared is shown below each result. Analyses are saved for review.");
+        Paragraph disclaimer = new Paragraph(getTranslation("insights.disclaimer"));
         disclaimer.addClassNames(LumoUtility.TextColor.SECONDARY, LumoUtility.FontSize.SMALL);
         add(intro, disclaimer);
 
-        ComboBox<Patient> picker = new ComboBox<>("Patient");
+        ComboBox<Patient> picker = new ComboBox<>(getTranslation("common.patient"));
         picker.setItems(patientService.findMonitored());
         picker.setItemLabelGenerator(InsightsView::patientLabel);
         picker.setWidth("320px");
@@ -217,30 +219,29 @@ public class InsightsView extends VerticalLayout {
     /** Snapshots the selected patient into the anonymized case archive (manual, idempotent). */
     private void archiveSelected(Patient patient) {
         if (patient == null) {
-            Notification.show("Select a patient first.");
+            Notification.show(getTranslation("insights.selectfirst"));
             return;
         }
         try {
             PatientCase archived = patientCaseService.archive(patient.getId());
             updateArchiveInfo();
-            Notification.show("Archived as " + archived.getCaseCode() + ". The case archive now has "
-                    + patientCaseService.archiveSize() + " case(s).");
+            Notification.show(getTranslation("insights.archived", archived.getCaseCode(),
+                    patientCaseService.archiveSize()));
         } catch (Exception ex) {
-            Notification error = Notification.show("Archive failed: " + rootMessage(ex), 5000,
+            Notification error = Notification.show(getTranslation("insights.archivefailed", rootMessage(ex)), 5000,
                     Notification.Position.MIDDLE);
             error.addThemeVariants(NotificationVariant.LUMO_ERROR);
         }
     }
 
     private void updateArchiveInfo() {
-        long n = patientCaseService.archiveSize();
-        archiveInfo.setText("Case archive: " + n + " anonymized case(s). Comparison searches this archive.");
+        archiveInfo.setText(getTranslation("insights.archiveinfo", patientCaseService.archiveSize()));
     }
 
     /** Runs an analysis or comparison off the UI thread, updating via polling so the UI stays responsive. */
     private void launch(Patient patient, boolean comparison) {
         if (patient == null) {
-            Notification.show("Select a patient first.");
+            Notification.show(getTranslation("insights.selectfirst"));
             return;
         }
         UI ui = UI.getCurrent();
@@ -263,8 +264,8 @@ public class InsightsView extends VerticalLayout {
                 });
             } catch (Exception ex) {
                 ui.access(() -> {
-                    Notification error = Notification.show("AI request failed: " + rootMessage(ex), 6000,
-                            Notification.Position.MIDDLE);
+                    Notification error = Notification.show(getTranslation("insights.airequestfailed", rootMessage(ex)),
+                            6000, Notification.Position.MIDDLE);
                     error.addThemeVariants(NotificationVariant.LUMO_ERROR);
                 });
             } finally {
@@ -292,7 +293,7 @@ public class InsightsView extends VerticalLayout {
         if (refs.isEmpty()) {
             grounding.setVisible(false);
         } else {
-            grounding.setSummaryText("Grounded on " + refs.size() + " reference(s)");
+            grounding.setSummaryText(getTranslation("insights.grounded", refs.size()));
             UnorderedList list = new UnorderedList();
             for (KnowledgeRef ref : refs) {
                 list.add(new ListItem(referenceLink(ref)));
@@ -330,22 +331,25 @@ public class InsightsView extends VerticalLayout {
         }
         PatientInsight latest = past.get(0); // history is newest first
         languagePicker.setValue(latest.language());
-        String noun = latest.type() == InsightType.COMPARISON ? "comparison" : "analysis";
-        showInsight(latest, "Last saved " + noun + " (" + latest.language().label() + ") from "
-                + TS.format(latest.createdAt()));
+        showInsight(latest, getTranslation("insights.status.last", latest.language().label(), nounOf(latest),
+                TS.format(latest.createdAt())));
+    }
+
+    private static String nounOf(PatientInsight insight) {
+        return I18n.t(insight.type() == InsightType.COMPARISON ? "insights.noun.comparison" : "insights.noun.analysis");
     }
 
     private static String statusFor(PatientInsight insight) {
         String when = TS.format(insight.createdAt());
         String lang = insight.language().label();
-        String noun = insight.type() == InsightType.COMPARISON ? "comparison" : "analysis";
+        String noun = nounOf(insight);
         if (insight.cached()) {
-            return "Reused an identical earlier " + lang + " " + noun + " from " + when + " — no API call (cost saved)";
+            return I18n.t("insights.status.reused", lang, noun, when);
         }
         if (insight.translated()) {
-            return "Translated to " + lang + " from the existing " + noun + " · " + when;
+            return I18n.t("insights.status.translated", lang, noun, when);
         }
-        return "New " + lang + " " + noun + " · " + when;
+        return I18n.t("insights.status.new", lang, noun, when);
     }
 
     private void clearResult() {
@@ -362,18 +366,18 @@ public class InsightsView extends VerticalLayout {
         if (past.isEmpty()) {
             return;
         }
-        H3 heading = new H3("Previous analyses (" + past.size() + ")");
+        H3 heading = new H3(getTranslation("insights.history.title", past.size()));
         heading.addClassNames(LumoUtility.FontSize.MEDIUM, LumoUtility.Margin.Top.MEDIUM,
                 LumoUtility.Margin.Bottom.SMALL);
         Div list = new Div();
         list.getStyle().set("display", "flex").set("flex-direction", "column").set("gap", "var(--lumo-space-xs)");
         for (PatientInsight item : past) {
             String when = TS.format(item.createdAt());
-            String noun = item.type() == InsightType.COMPARISON ? "comparison" : "analysis";
             Button open = new Button(
-                    when + " · " + item.type().label() + " · " + item.language().name() + " · " + item.model(), e -> {
+                    when + " · " + nounOf(item) + " · " + item.language().name() + " · " + item.model(), e -> {
                         languagePicker.setValue(item.language());
-                        showInsight(item, "Saved " + item.language().label() + " " + noun + " from " + when);
+                        showInsight(item, getTranslation("insights.status.saved", item.language().label(),
+                                nounOf(item), when));
                     });
             open.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE);
             list.add(open);
@@ -399,12 +403,12 @@ public class InsightsView extends VerticalLayout {
         record TrendTab(String label, Component content) {
         }
         List<TrendTab> defs = new ArrayList<>();
-        cohortTab(patientId).ifPresent(c -> defs.add(new TrendTab("Cohort", c)));
+        cohortTab(patientId).ifPresent(c -> defs.add(new TrendTab(getTranslation("insights.trends.cohort"), c)));
         if (!labCharts.isEmpty()) {
-            defs.add(new TrendTab("Labs", stack(labCharts)));
+            defs.add(new TrendTab(getTranslation("insights.trends.labs"), stack(labCharts)));
         }
-        energy.ifPresent(c -> defs.add(new TrendTab("Energy", c)));
-        delivery.ifPresent(c -> defs.add(new TrendTab("Delivery", c)));
+        energy.ifPresent(c -> defs.add(new TrendTab(getTranslation("insights.trends.energy"), c)));
+        delivery.ifPresent(c -> defs.add(new TrendTab(getTranslation("insights.trends.delivery"), c)));
 
         if (defs.isEmpty()) {
             trends.setVisible(false);
@@ -430,7 +434,7 @@ public class InsightsView extends VerticalLayout {
                 contents.get(i).setVisible(i == index);
             }
         });
-        trends.setSummaryText("Trends & charts");
+        trends.setSummaryText(getTranslation("insights.trends.title"));
         trends.setOpened(false); // collapsed so the insight shows first
         trends.setVisible(true);
         trends.add(tabs, panels);
@@ -453,8 +457,7 @@ public class InsightsView extends VerticalLayout {
         List<PatientCase> peers = cc.peers();
         List<Component> charts = new ArrayList<>();
 
-        Paragraph intro = new Paragraph("The selected patient vs the " + peers.size()
-                + " most similar archived cases.");
+        Paragraph intro = new Paragraph(getTranslation("insights.cohort.intro", peers.size()));
         intro.addClassNames(LumoUtility.TextColor.SECONDARY, LumoUtility.FontSize.SMALL);
         charts.add(intro);
 
@@ -462,18 +465,18 @@ public class InsightsView extends VerticalLayout {
         long died = peers.stream().filter(p -> Boolean.FALSE.equals(p.getDischarged())).count();
         long unknown = peers.size() - survived - died;
         Donut outcomes = new Donut(List.of(
-                new Donut.Slice("Recovered", survived, GREEN),
-                new Donut.Slice("Died", died, RED),
-                new Donut.Slice("Unknown", unknown, GREY)),
-                peers.size() + " cases");
-        charts.add(chartCard("Outcomes of the " + peers.size() + " most similar cases", outcomes));
+                new Donut.Slice(getTranslation("insights.cohort.recovered"), survived, GREEN),
+                new Donut.Slice(getTranslation("insights.cohort.died"), died, RED),
+                new Donut.Slice(getTranslation("insights.cohort.unknown"), unknown, GREY)),
+                getTranslation("insights.cohort.cases", peers.size()));
+        charts.add(chartCard(getTranslation("insights.cohort.outcomes", peers.size()), outcomes));
 
-        charts.add(chartCard("NUTRIC: selected patient vs similar cases",
+        charts.add(chartCard(getTranslation("insights.cohort.nutric"),
                 comparisonBars(cc.nutric() == null ? null : cc.nutric().doubleValue(), peers,
                         p -> p.getNutricScore() == null ? null : p.getNutricScore().doubleValue())));
-        charts.add(chartCard("BMI: selected patient vs similar cases",
+        charts.add(chartCard(getTranslation("insights.cohort.bmi"),
                 comparisonBars(cc.bmi(), peers, PatientCase::getBmi)));
-        charts.add(chartCard("Length of stay (days), green = recovered / red = died", staysBars(peers)));
+        charts.add(chartCard(getTranslation("insights.cohort.los"), staysBars(peers)));
 
         return Optional.of(stack(charts));
     }
@@ -482,7 +485,7 @@ public class InsightsView extends VerticalLayout {
                                           Function<PatientCase, Double> metric) {
         List<BarList.Bar> bars = new ArrayList<>();
         if (indexValue != null) {
-            bars.add(new BarList.Bar("Selected patient", indexValue, BLUE));
+            bars.add(new BarList.Bar(I18n.t("insights.cohort.selected"), indexValue, BLUE));
         }
         for (PatientCase p : peers) {
             Double value = metric.apply(p);
@@ -522,7 +525,8 @@ public class InsightsView extends VerticalLayout {
         Double refLow = last.getRefLow() == null ? null : last.getRefLow().doubleValue();
         Double refHigh = last.getRefHigh() == null ? null : last.getRefHigh().doubleValue();
         String unit = last.getUnitRaw();
-        String title = unit == null || unit.isBlank() ? label : label + " (" + unit + ")";
+        String name = getTranslation(label);
+        String title = unit == null || unit.isBlank() ? name : name + " (" + unit + ")";
         return Optional.of(chartCard(title, new TrendChart(points, refLow, refHigh, unit)));
     }
 
@@ -533,17 +537,17 @@ public class InsightsView extends VerticalLayout {
         List<TrendChart.Point> measured = energyPoints(
                 energyService.history(patientId, EnergyMethod.INDIRECT_CALORIMETRY));
         if (!predicted.isEmpty()) {
-            seriesList.add(new TrendChart.Series("Predicted (Harris-Benedict)", predicted));
+            seriesList.add(new TrendChart.Series(getTranslation("insights.chart.energy.predicted"), predicted));
         }
         if (!measured.isEmpty()) {
-            seriesList.add(new TrendChart.Series("Measured (calorimetry)", measured));
+            seriesList.add(new TrendChart.Series(getTranslation("insights.chart.energy.measured"), measured));
         }
         boolean trendable = seriesList.stream().anyMatch(s -> s.points().size() >= 2);
         if (!trendable) {
             return Optional.empty();
         }
-        return Optional.of(chartCard("Energy expenditure: measured vs predicted",
-                new TrendChart(seriesList, "kcal/day")));
+        return Optional.of(chartCard(getTranslation("insights.chart.energy"),
+                new TrendChart(seriesList, getTranslation("unit.kcalday"))));
     }
 
     private static List<TrendChart.Point> energyPoints(List<EnergyAssessment> history) {
@@ -570,7 +574,7 @@ public class InsightsView extends VerticalLayout {
         if (points.size() < 2) {
             return Optional.empty();
         }
-        return Optional.of(chartCard("Feed delivery (% of prescribed; 80–100% target shaded)",
+        return Optional.of(chartCard(getTranslation("insights.chart.delivery"),
                 new TrendChart(points, 80.0, 100.0, "%")));
     }
 
@@ -595,9 +599,7 @@ public class InsightsView extends VerticalLayout {
 
     private static Component setupNotice() {
         Div notice = new Div();
-        notice.add(new Paragraph("AI insights are not configured. Set the ANTHROPIC_API_KEY environment "
-                + "variable to an Anthropic API key (console.anthropic.com — separate from a Claude.ai "
-                + "subscription) and restart the app."));
+        notice.add(new Paragraph(I18n.t("insights.notconfigured")));
         notice.getStyle()
                 .set("border", "1px solid var(--lumo-warning-color-50pct)")
                 .set("border-radius", "var(--lumo-border-radius-l)")

@@ -1,4 +1,5 @@
 package t1tanic.nutritionicu.ui.nutrition;
+import t1tanic.nutritionicu.ui.common.I18n;
 import t1tanic.nutritionicu.ui.common.TrendChart;
 import t1tanic.nutritionicu.ui.common.UiFormat;
 
@@ -28,31 +29,33 @@ public class WeightHistoryDialog extends Dialog {
     private final transient NutritionService nutritionService;
     private final Long patientId;
 
-    private final DatePicker date = new DatePicker("Date");
-    private final NumberField weight = new NumberField("Weight (kg)");
+    private final DatePicker date = new DatePicker(I18n.t("nd.date"));
+    private final NumberField weight = new NumberField(I18n.t("nd.weight.weight"));
     private final Div chartHolder = new Div();
     private final Grid<WeightMeasurement> grid = new Grid<>(WeightMeasurement.class, false);
 
     public WeightHistoryDialog(Patient patient, NutritionService nutritionService) {
         this.nutritionService = nutritionService;
         this.patientId = patient.getId();
-        setHeaderTitle("Weight history · " + patient.getFullName());
+        setHeaderTitle(getTranslation("nd.weight.title", patient.getFullName()));
         setWidth("680px");
 
         UiFormat.dayMonthYear(date);
         date.setValue(LocalDate.now());
         date.setMax(LocalDate.now());
-        Button addOrUpdate = new Button("Add / update", e -> save());
+        Button addOrUpdate = new Button(getTranslation("nd.addupdate"), e -> save());
         addOrUpdate.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         HorizontalLayout form = new HorizontalLayout(date, weight, addOrUpdate);
         form.setAlignItems(FlexComponent.Alignment.BASELINE);
 
         chartHolder.setWidthFull();
 
-        grid.addColumn(m -> UiFormat.date(m.getMeasuredOn())).setHeader("Date").setAutoWidth(true);
-        grid.addColumn(WeightMeasurement::getWeightKg).setHeader("Weight (kg)").setAutoWidth(true);
+        grid.addColumn(m -> UiFormat.date(m.getMeasuredOn()))
+                .setHeader(getTranslation("nd.date")).setAutoWidth(true);
+        grid.addColumn(WeightMeasurement::getWeightKg)
+                .setHeader(getTranslation("nd.weight.weight")).setAutoWidth(true);
         if (SecurityUtils.isAdmin()) {
-            grid.addComponentColumn(m -> new Button("Delete", e -> {
+            grid.addComponentColumn(m -> new Button(getTranslation("common.delete"), e -> {
                 nutritionService.deleteWeight(m.getId());
                 refresh();
             })).setHeader("").setAutoWidth(true);
@@ -60,7 +63,7 @@ public class WeightHistoryDialog extends Dialog {
         grid.setAllRowsVisible(true);
 
         add(form, chartHolder, grid);
-        getFooter().add(new Button("Close", e -> close()));
+        getFooter().add(new Button(getTranslation("common.close"), e -> close()));
         refresh();
     }
 

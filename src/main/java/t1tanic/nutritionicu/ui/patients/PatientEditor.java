@@ -15,6 +15,7 @@ import t1tanic.nutritionicu.model.Patient;
 import t1tanic.nutritionicu.model.enums.AdmissionDiagnosis;
 import t1tanic.nutritionicu.model.enums.Sex;
 import t1tanic.nutritionicu.service.patient.PatientService;
+import t1tanic.nutritionicu.ui.common.I18n;
 import t1tanic.nutritionicu.ui.common.UiFormat;
 
 /**
@@ -24,27 +25,27 @@ import t1tanic.nutritionicu.ui.common.UiFormat;
  */
 public class PatientEditor extends Dialog {
 
-    private final TextField nhc = new TextField("Medical record number (NHC)");
-    private final TextField fullName = new TextField("Full name");
-    private final DatePicker birthDate = new DatePicker("Birth date");
-    private final ComboBox<Sex> sex = new ComboBox<>("Sex");
-    private final TextField healthCardId = new TextField("Health-card id (CIP)");
-    private final TextField socialSecurityNumber = new TextField("Social security number");
-    private final ComboBox<AdmissionDiagnosis> admissionDiagnosis = new ComboBox<>("Admission diagnosis");
-    private final Checkbox monitored = new Checkbox("Actively monitored");
+    private final TextField nhc = new TextField(I18n.t("editor.nhc"));
+    private final TextField fullName = new TextField(I18n.t("editor.fullname"));
+    private final DatePicker birthDate = new DatePicker(I18n.t("editor.birthdate"));
+    private final ComboBox<Sex> sex = new ComboBox<>(I18n.t("editor.sex"));
+    private final TextField healthCardId = new TextField(I18n.t("editor.cip"));
+    private final TextField socialSecurityNumber = new TextField(I18n.t("editor.ssn"));
+    private final ComboBox<AdmissionDiagnosis> admissionDiagnosis = new ComboBox<>(I18n.t("editor.diagnosis"));
+    private final Checkbox monitored = new Checkbox(I18n.t("editor.monitored"));
 
     public PatientEditor(Patient patient, PatientService patientService, Runnable onSaved) {
         boolean creating = patient == null;
-        setHeaderTitle(creating ? "New patient" : "Edit · " + patient.getFullName());
+        setHeaderTitle(creating ? I18n.t("editor.new") : I18n.t("editor.edit") + " · " + patient.getFullName());
         setWidth("460px");
 
         nhc.setRequiredIndicatorVisible(true);
         UiFormat.dayMonthYear(birthDate);
         sex.setItems(Sex.values());
-        sex.setItemLabelGenerator(PatientEditor::sexLabel);
+        sex.setItemLabelGenerator(s -> I18n.t("sex." + s.name()));
         sex.setValue(Sex.UNKNOWN);
         admissionDiagnosis.setItems(AdmissionDiagnosis.values());
-        admissionDiagnosis.setItemLabelGenerator(AdmissionDiagnosis::label);
+        admissionDiagnosis.setItemLabelGenerator(d -> I18n.t("diagnosis." + d.name()));
         admissionDiagnosis.setClearButtonVisible(true);
 
         if (!creating) {
@@ -65,8 +66,8 @@ public class PatientEditor extends Dialog {
         form.setColspan(monitored, 2);
         add(form);
 
-        Button cancel = new Button("Cancel", e -> close());
-        Button save = new Button("Save", e -> save(patient, patientService, onSaved));
+        Button cancel = new Button(I18n.t("common.cancel"), e -> close());
+        Button save = new Button(I18n.t("common.save"), e -> save(patient, patientService, onSaved));
         save.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         getFooter().add(cancel, save);
     }
@@ -94,14 +95,6 @@ public class PatientEditor extends Dialog {
         }
         onSaved.run();
         close();
-    }
-
-    private static String sexLabel(Sex s) {
-        return switch (s) {
-            case MALE -> "Male";
-            case FEMALE -> "Female";
-            case UNKNOWN -> "Unknown";
-        };
     }
 
     private static String nullToEmpty(String value) {

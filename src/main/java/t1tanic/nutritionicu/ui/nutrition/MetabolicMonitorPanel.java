@@ -11,6 +11,7 @@ import java.util.List;
 import t1tanic.nutritionicu.model.LabResult;
 import t1tanic.nutritionicu.model.Patient;
 import t1tanic.nutritionicu.service.lab.LabResultService;
+import t1tanic.nutritionicu.ui.common.I18n;
 import t1tanic.nutritionicu.ui.nutrition.MetabolicInterpreter.Interpretation;
 
 /**
@@ -33,10 +34,10 @@ class MetabolicMonitorPanel extends Composite<VerticalLayout> {
     }
 
     private static final List<Marker> MARKERS = List.of(
-            new Marker("CRP", "C-reactive protein (CRP)", Concern.HIGH),
-            new Marker("PROCALCITONIN", "Procalcitonin (PCT)", Concern.HIGH),
-            new Marker("PREALBUMIN", "Prealbumin", Concern.LOW),
-            new Marker("ALBUMIN", "Albumin", Concern.LOW));
+            new Marker("CRP", "analyte.crp", Concern.HIGH),
+            new Marker("PROCALCITONIN", "analyte.pct", Concern.HIGH),
+            new Marker("PREALBUMIN", "analyte.prealbumin", Concern.LOW),
+            new Marker("ALBUMIN", "analyte.albumin", Concern.LOW));
 
     MetabolicMonitorPanel(Patient patient, LabResultService labResultService) {
         VerticalLayout root = getContent();
@@ -60,11 +61,10 @@ class MetabolicMonitorPanel extends Composite<VerticalLayout> {
             }
         }
         if (!any) {
-            root.add(new Span("No CRP / procalcitonin / prealbumin / albumin results for this patient."));
+            root.add(new Span(I18n.t("metabolic.noresults")));
         }
 
-        Span note = new Span("Albumin is a negative acute-phase reactant — not a reliable acute "
-                + "nutritional marker; shown for context only.");
+        Span note = new Span(I18n.t("metabolic.note"));
         note.getStyle().set("font-size", "var(--lumo-font-size-xs)")
                 .set("color", "var(--lumo-secondary-text-color)");
         root.add(note);
@@ -73,10 +73,10 @@ class MetabolicMonitorPanel extends Composite<VerticalLayout> {
     private Div markerBlock(Marker marker, LabTrend trend) {
         Div block = new Div();
         block.setWidthFull();
+        String position = trend.elevated() ? I18n.t("metabolic.aboveref")
+                : trend.low() ? I18n.t("metabolic.belowref") : I18n.t("metabolic.withinref");
         String headline = "%s: %s %s   (%s, %s)".formatted(
-                marker.label(), trend.latestText(), trendArrow(trend),
-                trend.elevated() ? "above ref" : trend.low() ? "below ref" : "within ref",
-                trend.refText());
+                I18n.t(marker.label()), trend.latestText(), trendArrow(trend), position, trend.refText());
         H4 title = new H4(headline);
         title.getStyle().set("margin-bottom", "0");
         block.add(title);

@@ -16,6 +16,7 @@ import t1tanic.nutritionicu.model.enums.ComorbidityBand;
 import t1tanic.nutritionicu.model.enums.Il6Band;
 import t1tanic.nutritionicu.model.enums.SofaBand;
 import t1tanic.nutritionicu.service.nutrition.NutritionService;
+import t1tanic.nutritionicu.ui.common.I18n;
 
 /**
  * Banded NUTRIC entry: the doctor selects each severity band from a dropdown; age is
@@ -31,32 +32,35 @@ public class RiskAssessmentDialog extends Dialog {
     private final Span result = new Span();
 
     public RiskAssessmentDialog(Patient patient, NutritionService nutritionService, Runnable onSaved) {
-        setHeaderTitle("Nutritional risk · " + patient.getFullName());
+        setHeaderTitle(getTranslation("nd.risk.title", patient.getFullName()));
         setWidth("440px");
 
         Integer years = patient.ageOn(LocalDate.now());
         int age = years == null ? 0 : years;
         AgeBand ageBand = AgeBand.fromAge(age);
-        add(new Span("Age: " + age + " yrs → " + ageBand.label() + " (" + ageBand.points() + " pt)"));
+        add(new Span(getTranslation("nd.risk.agesummary",
+                String.valueOf(age), ageBand.label(), String.valueOf(ageBand.points()))));
 
-        configure(apache, "APACHE II", ApacheBand.values(), ApacheBand::label);
-        configure(sofa, "SOFA", SofaBand.values(), SofaBand::label);
-        configure(comorbidity, "Comorbidities", ComorbidityBand.values(), ComorbidityBand::label);
-        configure(admissionDelay, "Days hospital → ICU", AdmissionDelayBand.values(), AdmissionDelayBand::label);
+        configure(apache, getTranslation("nd.risk.apache"), ApacheBand.values(), ApacheBand::label);
+        configure(sofa, getTranslation("nd.risk.sofa"), SofaBand.values(), SofaBand::label);
+        configure(comorbidity, getTranslation("nd.risk.comorbidity"), ComorbidityBand.values(), ComorbidityBand::label);
+        configure(admissionDelay, getTranslation("nd.risk.admissiondelay"),
+                AdmissionDelayBand.values(), AdmissionDelayBand::label);
 
         // Null-safe label: the empty-selection item is rendered with a null value.
-        configure(il6, "IL-6 (pg/mL)", Il6Band.values(), band -> band == null ? "Not measured" : band.label());
+        configure(il6, getTranslation("nd.risk.il6"), Il6Band.values(),
+                band -> band == null ? getTranslation("nd.risk.notmeasured") : band.label());
         il6.setEmptySelectionAllowed(true);
-        il6.setEmptySelectionCaption("Not measured");
-        il6.setHelperText("Optional — adds the IL-6 component (max 10)");
+        il6.setEmptySelectionCaption(getTranslation("nd.risk.notmeasured"));
+        il6.setHelperText(getTranslation("nd.risk.il6helper"));
 
         FormLayout form = new FormLayout(apache, sofa, comorbidity, admissionDelay, il6);
         form.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1));
-        add(form, new Span("NUTRIC"), result);
+        add(form, new Span(getTranslation("nd.risk.nutric")), result);
         recompute(ageBand, nutritionService);
 
-        Button cancel = new Button("Cancel", e -> close());
-        Button save = new Button("Save", e -> {
+        Button cancel = new Button(getTranslation("common.cancel"), e -> close());
+        Button save = new Button(getTranslation("common.save"), e -> {
             nutritionService.recordRiskAssessment(patient.getId(), LocalDate.now(),
                     apache.getValue(), sofa.getValue(), comorbidity.getValue(),
                     admissionDelay.getValue(), il6.getValue());
@@ -90,9 +94,9 @@ public class RiskAssessmentDialog extends Dialog {
         }
         NutricScore s = service.computeNutric(ageBand, apache.getValue(), sofa.getValue(),
                 comorbidity.getValue(), admissionDelay.getValue(), il6.getValue());
-        result.setText("Score %d / %d — %s%s".formatted(
-                s.score(), s.maxScore(),
-                s.highRisk() ? "HIGH risk" : "Low risk",
-                s.includesIl6() ? " (with IL-6)" : ""));
+        result.setText(getTranslation("nd.risk.result",
+                String.valueOf(s.score()), String.valueOf(s.maxScore()),
+                getTranslation(s.highRisk() ? "nd.risk.high" : "nd.risk.low"),
+                s.includesIl6() ? getTranslation("nd.risk.withil6") : ""));
     }
 }

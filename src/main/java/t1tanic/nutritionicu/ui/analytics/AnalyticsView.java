@@ -1,4 +1,5 @@
 package t1tanic.nutritionicu.ui.analytics;
+import t1tanic.nutritionicu.ui.common.I18n;
 import t1tanic.nutritionicu.ui.common.TrendChart;
 import t1tanic.nutritionicu.ui.common.UiFormat;
 import t1tanic.nutritionicu.ui.MainLayout;
@@ -12,7 +13,7 @@ import com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.radiobutton.RadioButtonGroup;
-import com.vaadin.flow.router.PageTitle;
+import com.vaadin.flow.router.HasDynamicTitle;
 import com.vaadin.flow.router.Route;
 import jakarta.annotation.security.PermitAll;
 import java.math.BigDecimal;
@@ -33,16 +34,20 @@ import t1tanic.nutritionicu.service.patient.PatientService;
 
 /** Pick a patient and an analyte to see its value-over-time trend and the underlying readings. */
 @Route(value = "analytics", layout = MainLayout.class)
-@PageTitle("Analytics · ICU Nutrition")
 @PermitAll
-public class AnalyticsView extends VerticalLayout {
+public class AnalyticsView extends VerticalLayout implements HasDynamicTitle {
+
+    @Override
+    public String getPageTitle() {
+        return getTranslation("analytics.title") + " · " + getTranslation("app.title");
+    }
 
     private final transient LabResultService labResultService;
     private final transient AnalyteCatalog analyteCatalog;
 
-    private final ComboBox<Patient> patientBox = new ComboBox<>("Patient");
-    private final RadioButtonGroup<Mode> modeBox = new RadioButtonGroup<>("Comparison");
-    private final MultiSelectComboBox<AnalyteOption> analyteBox = new MultiSelectComboBox<>("Analytes");
+    private final ComboBox<Patient> patientBox = new ComboBox<>(I18n.t("common.patient"));
+    private final RadioButtonGroup<Mode> modeBox = new RadioButtonGroup<>(I18n.t("analytics.comparison"));
+    private final MultiSelectComboBox<AnalyteOption> analyteBox = new MultiSelectComboBox<>(I18n.t("analytics.analytes"));
     private final Div chartHolder = new Div();
     private final Grid<LabResult> grid = new Grid<>(LabResult.class, false);
 
@@ -53,14 +58,8 @@ public class AnalyticsView extends VerticalLayout {
 
     /** How to combine several analytes on one chart. */
     private enum Mode {
-        CROSS("Cross data (normalized)"),
-        SAME_UNIT("Same unit (absolute)");
-
-        private final String label;
-
-        Mode(String label) {
-            this.label = label;
-        }
+        CROSS,
+        SAME_UNIT
     }
 
     /**
@@ -82,7 +81,7 @@ public class AnalyticsView extends VerticalLayout {
         this.analyteCatalog = analyteCatalog;
         setWidthFull();
         setPadding(true);
-        add(new H2("Analytics"));
+        add(new H2(getTranslation("analytics.title")));
 
         patientBox.setItems(patientService.findAll());
         patientBox.setItemLabelGenerator(p -> p.getFullName() + " (" + p.getMedicalRecordNumber() + ")");
@@ -90,14 +89,14 @@ public class AnalyticsView extends VerticalLayout {
         patientBox.addValueChangeListener(e -> onPatientSelected(e.getValue()));
 
         modeBox.setItems(Mode.values());
-        modeBox.setItemLabelGenerator(m -> m.label);
+        modeBox.setItemLabelGenerator(m -> getTranslation("analytics.mode." + m.name()));
         modeBox.setValue(Mode.CROSS);
         modeBox.addValueChangeListener(e -> onModeChanged());
 
         analyteBox.setItemLabelGenerator(AnalyteOption::label);
         analyteBox.setEnabled(false);
         analyteBox.setWidth("22em");
-        analyteBox.setHelperText("One: absolute + reference band · several: overlaid.");
+        analyteBox.setHelperText(getTranslation("analytics.helper"));
         analyteBox.addValueChangeListener(e -> onAnalytesChanged());
 
         HorizontalLayout controls = new HorizontalLayout(patientBox, modeBox, analyteBox);
@@ -108,13 +107,14 @@ public class AnalyticsView extends VerticalLayout {
         chartHolder.setWidthFull();
         add(chartHolder);
 
-        grid.addColumn(r -> analyteCatalog.displayName(r.getAnalyteName()))
-                .setHeader("Analyte").setAutoWidth(true);
-        grid.addColumn(r -> UiFormat.dateTime(r.getObservedAt())).setHeader("Observed").setAutoWidth(true);
-        grid.addColumn(LabResult::getValueRaw).setHeader("Value").setAutoWidth(true);
-        grid.addColumn(LabResult::getUnitRaw).setHeader("Unit").setAutoWidth(true);
-        grid.addColumn(LabResult::getFlag).setHeader("Flag").setAutoWidth(true);
-        grid.addColumn(LabResult::getRefRaw).setHeader("Reference").setAutoWidth(true);
+        grid.addColumn(r -> localizedAnalyte(r.getAnalyteName()))
+                .setHeader(getTranslation("analytics.col.analyte")).setAutoWidth(true);
+        grid.addColumn(r -> UiFormat.dateTime(r.getObservedAt())).setHeader(getTranslation("analytics.col.observed")).setAutoWidth(true);
+        grid.addColumn(LabResult::getValueRaw).setHeader(getTranslation("analytics.col.value")).setAutoWidth(true);
+        grid.addColumn(LabResult::getUnitRaw).setHeader(getTranslation("analytics.col.unit")).setAutoWidth(true);
+        grid.addColumn(r -> r.getFlag() == null ? "" : getTranslation("resultFlag." + r.getFlag().name()))
+                .setHeader(getTranslation("analytics.col.flag")).setAutoWidth(true);
+        grid.addColumn(LabResult::getRefRaw).setHeader(getTranslation("analytics.col.reference")).setAutoWidth(true);
         add(grid);
     }
 
@@ -182,14 +182,24 @@ public class AnalyticsView extends VerticalLayout {
             String unit = entry.getValue();
             String code = analyteCatalog.codeFor(raw);
             if (code == null) {
-                options.add(new AnalyteOption(analyteCatalog.displayName(raw), null, raw, unit));
+                options.add(new AnalyteOption(localizedAnalyte(raw), null, raw, unit));
             } else {
-                byCode.computeIfAbsent(code, c -> new AnalyteOption(analyteCatalog.displayName(raw), c, null, unit));
+                byCode.computeIfAbsent(code, c -> new AnalyteOption(localizedAnalyte(raw), c, null, unit));
             }
         }
         options.addAll(byCode.values());
         options.sort(Comparator.comparing(AnalyteOption::label, String.CASE_INSENSITIVE_ORDER));
         return options;
+    }
+
+    /**
+     * Localized analyte name for display: resolves the canonical code to an {@code analyte.code.<CODE>}
+     * translation, falling back to the catalog's English name (and raw label) when the analyte is unmapped.
+     * Storage and AI prompts keep the catalog's English {@code displayName}.
+     */
+    private String localizedAnalyte(String rawName) {
+        String code = analyteCatalog.codeFor(rawName);
+        return code == null ? analyteCatalog.displayName(rawName) : getTranslation("analyte.code." + code);
     }
 
     private void renderSeries() {

@@ -19,7 +19,8 @@ class LabReportParserTest {
 
     private final PdfTextExtractor extractor = new PdfTextExtractor(
             new AppProperties(new AppProperties.Ingestion("src/main/resources/data"),
-                    new AppProperties.Ocr("", "cat+spa")));
+                    new AppProperties.Ocr("", "cat+spa"),
+                    new AppProperties.Insights("src/main/resources/knowledge")));
     private final LabReportParser parser = new LabReportParser();
 
     private ParsedReport parse(String filename) {

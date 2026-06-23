@@ -43,9 +43,9 @@ public final class UiFormat {
         picker.setI18n(new DatePicker.DatePickerI18n().setDateFormat("dd-MM-yyyy"));
     }
 
-    /** A patient's age today as "{@code N yrs}", or {@link #EMPTY} when the birth date is unknown. */
+    /** A patient's age today, localized (e.g. "{@code N yrs}" / "{@code N años}"), or {@link #EMPTY}. */
     public static String ageYears(Patient patient) {
         Integer age = patient.ageOn(LocalDate.now());
-        return age == null ? EMPTY : age + " yrs";
+        return age == null ? EMPTY : I18n.t("common.years", String.valueOf(age));
     }
 }

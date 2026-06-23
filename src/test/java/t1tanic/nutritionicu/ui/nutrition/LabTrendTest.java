@@ -60,16 +60,17 @@ class LabTrendTest {
     void latestTextAndRefTextFormatLatestValueAndRange() {
         LabTrend trend = new LabTrend(List.of(reading(5.0, 0.0, 10.0, "mg/L"), reading(7.5, 0.0, 10.0, "mg/L")));
         assertThat(trend.latestText()).isEqualTo("7.5 mg/L");
-        assertThat(trend.refText()).isEqualTo("ref 0.0–10.0");
+        // refText() is localized: with no Vaadin UI in the test, I18n.t returns the raw key.
+        assertThat(trend.refText()).isEqualTo("metabolic.ref.range");
     }
 
     @Test
     void refTextHandlesOpenEndedAndMissingRanges() {
         assertThat(new LabTrend(List.of(reading(5.0, null, 10.0, "mg/L"))).refText())
-                .isEqualTo("ref ≤ 10.0");
+                .isEqualTo("metabolic.ref.max");
         assertThat(new LabTrend(List.of(reading(5.0, 2.0, null, "mg/L"))).refText())
-                .isEqualTo("ref ≥ 2.0");
-        assertThat(new LabTrend(List.of(noRef(5.0))).refText()).isEqualTo("no ref");
+                .isEqualTo("metabolic.ref.min");
+        assertThat(new LabTrend(List.of(noRef(5.0))).refText()).isEqualTo("metabolic.ref.none");
     }
 
     @Test

@@ -13,6 +13,7 @@ import com.vaadin.flow.component.textfield.TextField;
 import t1tanic.nutritionicu.model.NutritionProduct;
 import t1tanic.nutritionicu.model.enums.NutritionCategory;
 import t1tanic.nutritionicu.service.nutrition.NutritionFormulary;
+import t1tanic.nutritionicu.ui.common.I18n;
 
 /**
  * Add/edit dialog for a nutrition formula. Pass {@code null} to create a new one. Macronutrients are
@@ -20,32 +21,32 @@ import t1tanic.nutritionicu.service.nutrition.NutritionFormulary;
  */
 public class NutritionFormulaEditor extends Dialog {
 
-    private final TextField code = new TextField("Code");
-    private final TextField name = new TextField("Name");
-    private final ComboBox<NutritionCategory> category = new ComboBox<>("Type");
-    private final NumberField density = new NumberField("Density (kcal/ml)");
-    private final NumberField protein = gramField("Protein (g/100 ml)");
-    private final NumberField carbs = gramField("Carbohydrate (g/100 ml)");
-    private final NumberField fat = gramField("Fat (g/100 ml)");
-    private final NumberField fiber = gramField("Fibre (g/100 ml)");
-    private final TextField osmolarity = new TextField("Osmolarity (mOsm/l)");
-    private final NumberField sodium = gramField("Sodium (mg/100 ml)");
-    private final NumberField potassium = gramField("Potassium (mg/100 ml)");
-    private final NumberField chloride = gramField("Chloride (mg/100 ml)");
-    private final NumberField magnesium = gramField("Magnesium (mg/100 ml)");
-    private final NumberField calcium = gramField("Calcium (mg/100 ml)");
-    private final NumberField phosphorus = gramField("Phosphorus (mg/100 ml)");
-    private final TextArea indications = new TextArea("Indications");
+    private final TextField code = new TextField(I18n.t("feditor.code"));
+    private final TextField name = new TextField(I18n.t("feditor.name"));
+    private final ComboBox<NutritionCategory> category = new ComboBox<>(I18n.t("feditor.type"));
+    private final NumberField density = new NumberField(I18n.t("feditor.density"));
+    private final NumberField protein = gramField(I18n.t("feditor.protein"));
+    private final NumberField carbs = gramField(I18n.t("feditor.carbs"));
+    private final NumberField fat = gramField(I18n.t("feditor.fat"));
+    private final NumberField fiber = gramField(I18n.t("feditor.fiber"));
+    private final TextField osmolarity = new TextField(I18n.t("feditor.osmolarity"));
+    private final NumberField sodium = gramField(I18n.t("feditor.sodium"));
+    private final NumberField potassium = gramField(I18n.t("feditor.potassium"));
+    private final NumberField chloride = gramField(I18n.t("feditor.chloride"));
+    private final NumberField magnesium = gramField(I18n.t("feditor.magnesium"));
+    private final NumberField calcium = gramField(I18n.t("feditor.calcium"));
+    private final NumberField phosphorus = gramField(I18n.t("feditor.phosphorus"));
+    private final TextArea indications = new TextArea(I18n.t("feditor.indications"));
 
     public NutritionFormulaEditor(NutritionProduct product, NutritionFormulary formulary, Runnable onSaved) {
         boolean creating = product == null;
-        setHeaderTitle(creating ? "New formula" : "Edit · " + product.getName());
+        setHeaderTitle(creating ? getTranslation("feditor.new") : getTranslation("feditor.edit", product.getName()));
         setWidth("700px");
 
         code.setRequiredIndicatorVisible(true);
         name.setRequiredIndicatorVisible(true);
         category.setItems(NutritionCategory.values());
-        category.setItemLabelGenerator(NutritionCategory::label);
+        category.setItemLabelGenerator(c -> getTranslation("category." + c.name()));
         category.setRequiredIndicatorVisible(true);
         density.setRequiredIndicatorVisible(true);
         density.setStep(0.1);
@@ -64,8 +65,8 @@ public class NutritionFormulaEditor extends Dialog {
         form.setColspan(indications, 3);
         add(form);
 
-        Button cancel = new Button("Cancel", e -> close());
-        Button save = new Button("Save", e -> save(product, formulary, onSaved));
+        Button cancel = new Button(getTranslation("common.cancel"), e -> close());
+        Button save = new Button(getTranslation("common.save"), e -> save(product, formulary, onSaved));
         save.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         getFooter().add(cancel, save);
     }
@@ -91,15 +92,15 @@ public class NutritionFormulaEditor extends Dialog {
 
     private void save(NutritionProduct existing, NutritionFormulary formulary, Runnable onSaved) {
         if (isBlank(name.getValue())) {
-            error("Name is required");
+            error(getTranslation("feditor.err.name"));
             return;
         }
         if (category.getValue() == null) {
-            error("Type is required");
+            error(getTranslation("feditor.err.type"));
             return;
         }
         if (density.getValue() == null || density.getValue() <= 0) {
-            error("Density (kcal/ml) must be greater than 0");
+            error(getTranslation("feditor.err.density"));
             return;
         }
 

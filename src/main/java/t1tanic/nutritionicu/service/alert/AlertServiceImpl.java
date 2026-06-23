@@ -26,6 +26,7 @@ import t1tanic.nutritionicu.repo.DoctorRepository;
 import t1tanic.nutritionicu.repo.LabReportRepository;
 import t1tanic.nutritionicu.repo.PatientRepository;
 import t1tanic.nutritionicu.service.lab.AnalyteCatalog;
+import t1tanic.nutritionicu.ui.common.I18n;
 
 /**
  * Raises alerts for monitored patients, but only for the lab markers that matter to the ICU nutrition
@@ -136,7 +137,7 @@ public class AlertServiceImpl implements AlertService {
                 alert.getStatus().name(),
                 alert.getPatient().getMedicalRecordNumber(),
                 alert.getTargetSectors().stream().map(Enum::name).sorted().collect(Collectors.joining(", ")),
-                alert.getMessage(),
+                localizedMessage(alert),
                 alert.getCreatedAt());
     }
 
@@ -183,6 +184,35 @@ public class AlertServiceImpl implements AlertService {
                 .collect(Collectors.joining("; "));
         String prefix = hasRefeedingRisk(abnormal) ? "Possible refeeding syndrome — " : "";
         return prefix + "%d abnormal result(s): %s".formatted(abnormal.size(), detail);
+    }
+
+    /**
+     * The alert message localized for the current UI locale, rebuilt from the stored abnormal results so it
+     * follows the viewer's language. The persisted {@link Alert#getMessage()} stays English (logs,
+     * notifications, AI). Called only from request threads (the views' data providers), so a UI is present.
+     */
+    private String localizedMessage(Alert alert) {
+        List<LabResult> abnormal = alert.getAbnormalResults();
+        if (abnormal == null || abnormal.isEmpty()) {
+            return alert.getMessage();
+        }
+        String detail = abnormal.stream()
+                .map(result -> "%s %s%s (%s)".formatted(
+                        localizedAnalyte(result),
+                        result.getValueRaw(),
+                        result.getUnit() != null ? " " + result.getUnit().getSymbol() : "",
+                        result.getFlag() == null ? "" : I18n.t("resultFlag." + result.getFlag().name())))
+                .collect(Collectors.joining("; "));
+        String prefix = hasRefeedingRisk(abnormal) ? I18n.t("alert.msg.refeeding") + " " : "";
+        return prefix + I18n.t("alert.msg.count", String.valueOf(abnormal.size())) + " " + detail;
+    }
+
+    /** Localized analyte name by canonical code, falling back to the catalog's English name when unmapped. */
+    private String localizedAnalyte(LabResult result) {
+        String code = result.getAnalyteCode();
+        return code == null
+                ? analyteCatalog.displayName(result.getAnalyteName())
+                : I18n.t("analyte.code." + code);
     }
 
     private void notifyDoctors(Alert alert, Patient patient, Set<Sector> sectors) {

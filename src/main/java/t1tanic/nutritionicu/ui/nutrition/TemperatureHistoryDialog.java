@@ -1,4 +1,5 @@
 package t1tanic.nutritionicu.ui.nutrition;
+import t1tanic.nutritionicu.ui.common.I18n;
 import t1tanic.nutritionicu.ui.common.TrendChart;
 import t1tanic.nutritionicu.ui.common.UiFormat;
 
@@ -29,15 +30,15 @@ public class TemperatureHistoryDialog extends Dialog {
     private final transient NutritionService nutritionService;
     private final Long patientId;
 
-    private final DatePicker date = new DatePicker("Date");
-    private final NumberField temperature = new NumberField("Temperature (°C)");
+    private final DatePicker date = new DatePicker(I18n.t("nd.date"));
+    private final NumberField temperature = new NumberField(I18n.t("nd.temp.temp"));
     private final Div chartHolder = new Div();
     private final Grid<TemperatureMeasurement> grid = new Grid<>(TemperatureMeasurement.class, false);
 
     public TemperatureHistoryDialog(Patient patient, NutritionService nutritionService) {
         this.nutritionService = nutritionService;
         this.patientId = patient.getId();
-        setHeaderTitle("Temperature history · " + patient.getFullName());
+        setHeaderTitle(getTranslation("nd.temp.title", patient.getFullName()));
         setWidth("680px");
 
         UiFormat.dayMonthYear(date);
@@ -46,18 +47,19 @@ public class TemperatureHistoryDialog extends Dialog {
         temperature.setStep(0.1);
         temperature.setMin(25);
         temperature.setMax(45);
-        Button addOrUpdate = new Button("Add / update", e -> save());
+        Button addOrUpdate = new Button(getTranslation("nd.addupdate"), e -> save());
         addOrUpdate.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         HorizontalLayout form = new HorizontalLayout(date, temperature, addOrUpdate);
         form.setAlignItems(FlexComponent.Alignment.BASELINE);
 
         chartHolder.setWidthFull();
 
-        grid.addColumn(m -> UiFormat.date(m.getMeasuredOn())).setHeader("Date").setAutoWidth(true);
+        grid.addColumn(m -> UiFormat.date(m.getMeasuredOn()))
+                .setHeader(getTranslation("nd.date")).setAutoWidth(true);
         grid.addColumn(TemperatureMeasurement::getTemperatureCelsius)
-                .setHeader("Temperature (°C)").setAutoWidth(true);
+                .setHeader(getTranslation("nd.temp.temp")).setAutoWidth(true);
         if (SecurityUtils.isAdmin()) {
-            grid.addComponentColumn(m -> new Button("Delete", e -> {
+            grid.addComponentColumn(m -> new Button(getTranslation("common.delete"), e -> {
                 nutritionService.deleteTemperature(m.getId());
                 refresh();
             })).setHeader("").setAutoWidth(true);
@@ -65,7 +67,7 @@ public class TemperatureHistoryDialog extends Dialog {
         grid.setAllRowsVisible(true);
 
         add(form, chartHolder, grid);
-        getFooter().add(new Button("Close", e -> close()));
+        getFooter().add(new Button(getTranslation("common.close"), e -> close()));
         refresh();
     }
 

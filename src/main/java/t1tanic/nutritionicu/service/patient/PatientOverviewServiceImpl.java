@@ -49,7 +49,7 @@ public class PatientOverviewServiceImpl implements PatientOverviewService {
         Optional<NutritionRiskAssessment> risk = nutritionService.latestRiskAssessment(patientId);
 
         Identity identity = new Identity(p.getMedicalRecordNumber(), p.getFullName(), p.getSex(),
-                p.ageOn(LocalDate.now()), p.getBirthDate(), p.isMonitored(),
+                p.ageOn(LocalDate.now()), p.getBirthDate(), p.getAdmissionDiagnosis(), p.isMonitored(),
                 p.getAdmissionDate(), p.getDischargeDate());
         Anthropometry anthropometry = new Anthropometry(p.getHeightCm(), p.getCurrentWeightKg(),
                 p.getUsualWeightKg(), m.bmi(), m.idealBodyWeightKg(), m.adjustedBodyWeightKg(),
@@ -89,6 +89,8 @@ public class PatientOverviewServiceImpl implements PatientOverviewService {
                 c.kv(regular, bold, "Sex", id.sex() == null ? DASH : id.sex().name());
                 c.kv(regular, bold, "Age", id.ageYears() == null ? DASH : id.ageYears() + " yrs");
                 c.kv(regular, bold, "Born", date(id.birthDate()));
+                c.kv(regular, bold, "Diagnosis",
+                        id.admissionDiagnosis() == null ? DASH : id.admissionDiagnosis().label());
                 c.kv(regular, bold, "Monitored", id.monitored() ? "Yes" : "No");
                 c.kv(regular, bold, "Admitted", date(id.admissionDate()));
                 c.kv(regular, bold, "Discharged", date(id.dischargeDate()));
