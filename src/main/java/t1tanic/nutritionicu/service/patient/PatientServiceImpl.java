@@ -5,6 +5,9 @@ import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import t1tanic.nutritionicu.dto.PatientDetails;
+import t1tanic.nutritionicu.exception.ConflictException;
+import t1tanic.nutritionicu.exception.ResourceNotFoundException;
+import t1tanic.nutritionicu.exception.ValidationException;
 import t1tanic.nutritionicu.model.Patient;
 import t1tanic.nutritionicu.model.enums.Sex;
 import t1tanic.nutritionicu.repo.PatientRepository;
@@ -50,7 +53,7 @@ public class PatientServiceImpl implements PatientService {
     @Transactional
     public Patient updateDetails(Long patientId, PatientDetails details) {
         Patient patient = patientRepository.findById(patientId)
-                .orElseThrow(() -> new IllegalArgumentException("No patient with id " + patientId));
+                .orElseThrow(() -> new ResourceNotFoundException("No patient with id " + patientId));
         String nhc = requireNhc(details);
         requireNhcAvailable(nhc, patientId);
         patient.setMedicalRecordNumber(nhc);
@@ -75,7 +78,7 @@ public class PatientServiceImpl implements PatientService {
     private static String requireNhc(PatientDetails details) {
         String nhc = details.medicalRecordNumber() == null ? null : details.medicalRecordNumber().strip();
         if (nhc == null || nhc.isEmpty()) {
-            throw new IllegalArgumentException("Medical record number (NHC) is required");
+            throw new ValidationException("Medical record number (NHC) is required");
         }
         return nhc;
     }
@@ -85,7 +88,7 @@ public class PatientServiceImpl implements PatientService {
         patientRepository.findByMedicalRecordNumber(nhc)
                 .filter(existing -> !existing.getId().equals(selfId))
                 .ifPresent(existing -> {
-                    throw new IllegalArgumentException("A patient with NHC " + nhc + " already exists");
+                    throw new ConflictException("A patient with NHC " + nhc + " already exists");
                 });
     }
 }

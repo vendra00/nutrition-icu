@@ -16,6 +16,7 @@ import org.apache.pdfbox.pdmodel.font.Standard14Fonts.FontName;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import t1tanic.nutritionicu.dto.NutritionMetrics;
+import t1tanic.nutritionicu.exception.ResourceNotFoundException;
 import t1tanic.nutritionicu.dto.PatientOverview;
 import t1tanic.nutritionicu.dto.PatientOverview.Anthropometry;
 import t1tanic.nutritionicu.dto.PatientOverview.Identity;
@@ -43,7 +44,7 @@ public class PatientOverviewServiceImpl implements PatientOverviewService {
     @Transactional(readOnly = true)
     public PatientOverview build(Long patientId) {
         Patient p = patientService.findById(patientId)
-                .orElseThrow(() -> new IllegalArgumentException("No patient with id " + patientId));
+                .orElseThrow(() -> new ResourceNotFoundException("No patient with id " + patientId));
         NutritionMetrics m = nutritionService.metricsFor(p);
         Optional<TemperatureMeasurement> temp = nutritionService.latestTemperature(patientId);
         Optional<NutritionRiskAssessment> risk = nutritionService.latestRiskAssessment(patientId);

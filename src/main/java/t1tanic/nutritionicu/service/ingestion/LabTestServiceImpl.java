@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import t1tanic.nutritionicu.config.AppProperties;
 import t1tanic.nutritionicu.dto.IngestionSummary;
+import t1tanic.nutritionicu.exception.ValidationException;
 
 /**
  * Resolves the front-end's requested folder against a configured root, guards
@@ -34,7 +35,7 @@ public class LabTestServiceImpl implements LabTestService {
         String relative = relativePath == null ? "" : relativePath.strip();
         Path target = root.resolve(relative).normalize();
         if (!target.startsWith(root)) {
-            throw new IllegalArgumentException(
+            throw new ValidationException(
                     "Path '" + relativePath + "' resolves outside the ingestion root");
         }
         return target;

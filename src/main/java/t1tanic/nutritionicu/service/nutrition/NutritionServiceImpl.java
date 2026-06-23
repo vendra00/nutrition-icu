@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import t1tanic.nutritionicu.dto.NutricScore;
 import t1tanic.nutritionicu.dto.NutritionMetrics;
+import t1tanic.nutritionicu.exception.ResourceNotFoundException;
 import t1tanic.nutritionicu.model.BodyCompositionMeasurement;
 import t1tanic.nutritionicu.model.NutritionRiskAssessment;
 import t1tanic.nutritionicu.model.Patient;
@@ -229,7 +230,7 @@ public class NutritionServiceImpl implements NutritionService {
 
     private Patient patient(Long patientId) {
         return patientRepository.findById(patientId)
-                .orElseThrow(() -> new IllegalArgumentException("No patient with id " + patientId));
+                .orElseThrow(() -> new ResourceNotFoundException("No patient with id " + patientId));
     }
 
     /** BMI = weight(kg) / height(m)². */

@@ -9,6 +9,7 @@ import java.util.Locale;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import t1tanic.nutritionicu.exception.ResourceNotFoundException;
 import t1tanic.nutritionicu.model.BodyCompositionMeasurement;
 import t1tanic.nutritionicu.model.LabResult;
 import t1tanic.nutritionicu.model.NutritionRiskAssessment;
@@ -76,7 +77,7 @@ public class PatientCaseService {
     @Transactional
     public PatientCase archive(Long patientId) {
         Patient patient = patientService.findById(patientId)
-                .orElseThrow(() -> new IllegalArgumentException("Unknown patient: " + patientId));
+                .orElseThrow(() -> new ResourceNotFoundException("Unknown patient: " + patientId));
         Features f = features(patient);
 
         PatientCase c = caseRepository.findBySourcePatientId(patientId).orElseGet(PatientCase::new);

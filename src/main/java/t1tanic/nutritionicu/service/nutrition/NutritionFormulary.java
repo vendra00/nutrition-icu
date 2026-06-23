@@ -4,6 +4,8 @@ import java.util.List;
 import java.util.Optional;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Component;
+import t1tanic.nutritionicu.exception.ConflictException;
+import t1tanic.nutritionicu.exception.ValidationException;
 import t1tanic.nutritionicu.model.NutritionProduct;
 import t1tanic.nutritionicu.repo.NutritionProductRepository;
 
@@ -45,12 +47,12 @@ public class NutritionFormulary {
     public NutritionProduct save(NutritionProduct product) {
         String code = product.getCode() == null ? null : product.getCode().strip();
         if (code == null || code.isEmpty()) {
-            throw new IllegalArgumentException("Code is required");
+            throw new ValidationException("Code is required");
         }
         product.setCode(code);
         repository.findByCode(code).ifPresent(existing -> {
             if (!existing.getId().equals(product.getId())) {
-                throw new IllegalArgumentException("A formula with code " + code + " already exists");
+                throw new ConflictException("A formula with code " + code + " already exists");
             }
         });
         return repository.save(product);

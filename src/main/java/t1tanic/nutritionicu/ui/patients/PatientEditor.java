@@ -11,6 +11,7 @@ import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.textfield.TextField;
 import t1tanic.nutritionicu.dto.PatientDetails;
+import t1tanic.nutritionicu.exception.ApplicationException;
 import t1tanic.nutritionicu.model.Patient;
 import t1tanic.nutritionicu.model.enums.AdmissionDiagnosis;
 import t1tanic.nutritionicu.model.enums.Sex;
@@ -103,7 +104,7 @@ public class PatientEditor extends Dialog {
             } else {
                 patientService.updateDetails(patient.getId(), details);
             }
-        } catch (IllegalArgumentException ex) {
+        } catch (ApplicationException ex) {
             Notification error = Notification.show(ex.getMessage(), 4000, Notification.Position.MIDDLE);
             error.addThemeVariants(NotificationVariant.LUMO_ERROR);
             return;

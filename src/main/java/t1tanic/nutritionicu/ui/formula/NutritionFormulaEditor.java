@@ -10,6 +10,7 @@ import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
+import t1tanic.nutritionicu.exception.ApplicationException;
 import t1tanic.nutritionicu.model.NutritionProduct;
 import t1tanic.nutritionicu.model.enums.NutritionCategory;
 import t1tanic.nutritionicu.service.nutrition.NutritionFormulary;
@@ -124,7 +125,7 @@ public class NutritionFormulaEditor extends Dialog {
 
         try {
             formulary.save(product);
-        } catch (IllegalArgumentException ex) {
+        } catch (ApplicationException ex) {
             error(ex.getMessage());
             return;
         }
