@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import t1tanic.nutritionicu.dto.AlertSummary;
 import t1tanic.nutritionicu.dto.DashboardStats;
+import t1tanic.nutritionicu.dto.HeightWeightPoint;
 import t1tanic.nutritionicu.dto.NutritionMetrics;
 import t1tanic.nutritionicu.model.Patient;
 import t1tanic.nutritionicu.service.alert.AlertService;
@@ -84,5 +85,15 @@ public class DashboardServiceImpl implements DashboardService {
         return new DashboardStats(patients.size(), alerts.size(), critical, warning,
                 highRisk, lowRisk, notAssessed,
                 underweight, normalWeight, overweight, obese, avgDelivered);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<HeightWeightPoint> heightWeightScatter() {
+        return patientService.findMonitored().stream()
+                .filter(p -> p.getHeightCm() != null && p.getCurrentWeightKg() != null
+                        && p.getHeightCm() > 0 && p.getCurrentWeightKg() > 0)
+                .map(p -> new HeightWeightPoint(p.getSex(), p.getHeightCm(), p.getCurrentWeightKg()))
+                .toList();
     }
 }
