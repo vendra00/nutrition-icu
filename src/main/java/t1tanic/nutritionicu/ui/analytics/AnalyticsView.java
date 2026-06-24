@@ -4,12 +4,16 @@ import t1tanic.nutritionicu.ui.common.TrendChart;
 import t1tanic.nutritionicu.ui.common.UiFormat;
 import t1tanic.nutritionicu.ui.MainLayout;
 
+import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.combobox.MultiSelectComboBox;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H2;
+import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment;
+import com.vaadin.flow.component.orderedlayout.FlexComponent.JustifyContentMode;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.radiobutton.RadioButtonGroup;
@@ -28,6 +32,7 @@ import java.util.Objects;
 import java.util.Set;
 import t1tanic.nutritionicu.model.LabResult;
 import t1tanic.nutritionicu.model.Patient;
+import t1tanic.nutritionicu.service.ingestion.LabTestService;
 import t1tanic.nutritionicu.service.lab.AnalyteCatalog;
 import t1tanic.nutritionicu.service.lab.LabResultService;
 import t1tanic.nutritionicu.service.patient.PatientService;
@@ -42,8 +47,10 @@ public class AnalyticsView extends VerticalLayout implements HasDynamicTitle {
         return getTranslation("analytics.title") + " · " + getTranslation("app.title");
     }
 
+    private final transient PatientService patientService;
     private final transient LabResultService labResultService;
     private final transient AnalyteCatalog analyteCatalog;
+    private final transient LabTestService labTestService;
 
     private final ComboBox<Patient> patientBox = new ComboBox<>(I18n.t("common.patient"));
     private final RadioButtonGroup<Mode> modeBox = new RadioButtonGroup<>(I18n.t("analytics.comparison"));
@@ -76,12 +83,28 @@ public class AnalyticsView extends VerticalLayout implements HasDynamicTitle {
 
     public AnalyticsView(PatientService patientService,
                          LabResultService labResultService,
-                         AnalyteCatalog analyteCatalog) {
+                         AnalyteCatalog analyteCatalog,
+                         LabTestService labTestService) {
+        this.patientService = patientService;
         this.labResultService = labResultService;
         this.analyteCatalog = analyteCatalog;
+        this.labTestService = labTestService;
         setWidthFull();
         setPadding(true);
-        add(new H2(getTranslation("analytics.title")));
+
+        Button ingest = new Button(getTranslation("ingest.button"), VaadinIcon.UPLOAD.create(),
+                e -> new IngestDialog(labTestService, this::refreshPatients).open());
+        ingest.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        Button dictionary = new Button(getTranslation("analytics.dict.button"), VaadinIcon.BOOK.create(),
+                e -> new FieldDictionaryDialog(analyteCatalog.canonicalCodes()).open());
+        dictionary.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        HorizontalLayout actions = new HorizontalLayout(ingest, dictionary);
+        actions.setAlignItems(Alignment.CENTER);
+        HorizontalLayout header = new HorizontalLayout(new H2(getTranslation("analytics.title")), actions);
+        header.setWidthFull();
+        header.setAlignItems(Alignment.CENTER);
+        header.setJustifyContentMode(JustifyContentMode.BETWEEN);
+        add(header);
 
         patientBox.setItems(patientService.findAll());
         patientBox.setItemLabelGenerator(p -> p.getFullName() + " (" + p.getMedicalRecordNumber() + ")");
@@ -116,6 +139,11 @@ public class AnalyticsView extends VerticalLayout implements HasDynamicTitle {
                 .setHeader(getTranslation("analytics.col.flag")).setAutoWidth(true);
         grid.addColumn(LabResult::getRefRaw).setHeader(getTranslation("analytics.col.reference")).setAutoWidth(true);
         add(grid);
+    }
+
+    /** Reloads the patient list after an ingest so newly added patients appear. */
+    private void refreshPatients() {
+        patientBox.setItems(patientService.findAll());
     }
 
     private void onPatientSelected(Patient patient) {

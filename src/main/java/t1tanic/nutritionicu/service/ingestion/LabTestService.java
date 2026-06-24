@@ -1,5 +1,6 @@
 package t1tanic.nutritionicu.service.ingestion;
 
+import java.util.Map;
 import t1tanic.nutritionicu.dto.IngestionSummary;
 
 /** Front-facing operations for ingesting lab-report PDFs. */
@@ -13,4 +14,13 @@ public interface LabTestService {
      * @throws IllegalArgumentException if the path resolves outside the configured root
      */
     IngestionSummary ingest(String relativePath);
+
+    /**
+     * Saves browser-uploaded PDFs into the ingestion root and ingests them (so dedup, parsing and alerting
+     * run exactly as for folder ingestion). Existing files are not overwritten.
+     *
+     * @param filesByName uploaded file name -> PDF bytes
+     * @return a summary of what was ingested, skipped, or failed
+     */
+    IngestionSummary ingestUploaded(Map<String, byte[]> filesByName);
 }

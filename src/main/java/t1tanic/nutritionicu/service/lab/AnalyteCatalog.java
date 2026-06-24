@@ -1,5 +1,6 @@
 package t1tanic.nutritionicu.service.lab;
 
+import java.util.List;
 import java.util.Map;
 import org.springframework.stereotype.Component;
 
@@ -124,6 +125,11 @@ public class AnalyteCatalog {
             Map.entry("vSan-Glucosa", new CanonicalAnalyte("GLUCOSE", "Glucose (blood gas)")),
             Map.entry("vSan-Lactat", new CanonicalAnalyte("LACTATE", "Lactate")),
             Map.entry("Ven-Hemoglobina total", new CanonicalAnalyte("HEMOGLOBIN", "Total hemoglobin")));
+
+    /** Every distinct canonical analyte code, sorted — the entries of the field dictionary. */
+    public List<String> canonicalCodes() {
+        return CATALOG.values().stream().map(CanonicalAnalyte::code).distinct().sorted().toList();
+    }
 
     /** Canonical code for a raw analyte label, or {@code null} if not yet mapped. */
     public String codeFor(String rawAnalyteName) {

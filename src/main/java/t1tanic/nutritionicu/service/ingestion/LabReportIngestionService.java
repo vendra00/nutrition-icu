@@ -60,28 +60,38 @@ public class LabReportIngestionService {
     public IngestionSummary ingestDirectory(Path dir) {
         if (!Files.isDirectory(dir)) {
             log.warn("Ingestion directory does not exist: {}", dir.toAbsolutePath());
-            return new IngestionSummary(0, 0, 0, List.of("Directory not found: " + dir.toAbsolutePath()));
+            return new IngestionSummary(0, 0, 0,
+                    List.of("Directory not found: " + dir.toAbsolutePath()), List.of());
         }
 
         List<Path> pdfs = listPdfs(dir);
         log.info("Ingesting {} PDF(s) from {}", pdfs.size(), dir.toAbsolutePath());
+        return ingestFiles(pdfs);
+    }
 
+    /** Ingests the given PDF files (already on disk), each in its own transaction; returns a combined summary. */
+    public IngestionSummary ingestFiles(List<Path> pdfs) {
         int ingested = 0;
         int skipped = 0;
         List<String> errors = new ArrayList<>();
+        List<IngestionSummary.FileResult> results = new ArrayList<>();
         for (Path pdf : pdfs) {
+            String name = pdf.getFileName().toString();
             try {
                 if (self.ingestFile(pdf)) {
                     ingested++;
+                    results.add(new IngestionSummary.FileResult(name, IngestionSummary.Outcome.INGESTED, null));
                 } else {
                     skipped++;
+                    results.add(new IngestionSummary.FileResult(name, IngestionSummary.Outcome.SKIPPED, null));
                 }
             } catch (Exception e) {
-                log.error("Failed to ingest {}", pdf.getFileName(), e);
-                errors.add(pdf.getFileName() + ": " + e.getMessage());
+                log.error("Failed to ingest {}", name, e);
+                errors.add(name + ": " + e.getMessage());
+                results.add(new IngestionSummary.FileResult(name, IngestionSummary.Outcome.FAILED, e.getMessage()));
             }
         }
-        IngestionSummary summary = new IngestionSummary(ingested, skipped, errors.size(), errors);
+        IngestionSummary summary = new IngestionSummary(ingested, skipped, errors.size(), errors, results);
         log.info("Ingestion done: {} ingested, {} skipped, {} failed", ingested, skipped, errors.size());
         return summary;
     }
