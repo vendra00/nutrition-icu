@@ -1,10 +1,15 @@
 package t1tanic.nutritionicu.service.ingestion;
 
+import java.util.List;
 import java.util.Map;
 import t1tanic.nutritionicu.dto.IngestionSummary;
+import t1tanic.nutritionicu.dto.LabReportSummary;
 
-/** Front-facing operations for ingesting lab-report PDFs. */
+/** Front-facing operations for ingesting and listing lab-report PDFs. */
 public interface LabTestService {
+
+    /** The most recently ingested reports (newest first), capped at {@code limit}. */
+    List<LabReportSummary> recentReports(int limit);
 
     /**
      * Ingests every PDF in a subfolder of the configured ingestion root.

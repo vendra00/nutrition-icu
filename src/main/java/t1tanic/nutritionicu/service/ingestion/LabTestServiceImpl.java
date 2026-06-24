@@ -8,10 +8,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import t1tanic.nutritionicu.config.AppProperties;
 import t1tanic.nutritionicu.dto.IngestionSummary;
+import t1tanic.nutritionicu.dto.LabReportSummary;
 import t1tanic.nutritionicu.exception.ValidationException;
+import t1tanic.nutritionicu.repo.LabReportRepository;
 
 /**
  * Resolves the front-end's requested folder against a configured root, guards
@@ -22,11 +26,20 @@ import t1tanic.nutritionicu.exception.ValidationException;
 public class LabTestServiceImpl implements LabTestService {
 
     private final LabReportIngestionService ingestionService;
+    private final LabReportRepository reportRepository;
     private final Path root;
 
-    public LabTestServiceImpl(LabReportIngestionService ingestionService, AppProperties properties) {
+    public LabTestServiceImpl(LabReportIngestionService ingestionService,
+                              LabReportRepository reportRepository, AppProperties properties) {
         this.ingestionService = ingestionService;
+        this.reportRepository = reportRepository;
         this.root = Path.of(properties.ingestion().root()).toAbsolutePath().normalize();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<LabReportSummary> recentReports(int limit) {
+        return reportRepository.findRecentSummaries(PageRequest.of(0, Math.max(limit, 1)));
     }
 
     @Override

@@ -27,6 +27,7 @@ import t1tanic.nutritionicu.ui.doctors.DoctorsView;
 import t1tanic.nutritionicu.ui.energy.EnergyView;
 import t1tanic.nutritionicu.ui.formula.NutritionFormulaView;
 import t1tanic.nutritionicu.ui.insights.InsightsView;
+import t1tanic.nutritionicu.ui.labreports.LabReportsView;
 import t1tanic.nutritionicu.ui.nutrition.NutritionView;
 import t1tanic.nutritionicu.ui.patients.PatientsView;
 
@@ -76,6 +77,7 @@ public class MainLayout extends AppLayout {
         nav.addItem(new SideNavItem(getTranslation("nav.dashboard"), DashboardView.class, VaadinIcon.DASHBOARD.create()));
         nav.addItem(new SideNavItem(getTranslation("nav.alerts"), AlertsView.class, VaadinIcon.BELL.create()));
         nav.addItem(new SideNavItem(getTranslation("nav.patients"), PatientsView.class, VaadinIcon.USERS.create()));
+        nav.addItem(new SideNavItem(getTranslation("nav.labreports"), LabReportsView.class, VaadinIcon.FILE_TEXT.create()));
         nav.addItem(new SideNavItem(getTranslation("nav.nutrition"), NutritionView.class, VaadinIcon.CUTLERY.create()));
         if (authContext.hasRole("ADMIN")) {
             nav.addItem(new SideNavItem(getTranslation("nav.formula"), NutritionFormulaView.class, VaadinIcon.LIST.create()));

@@ -1,4 +1,4 @@
-package t1tanic.nutritionicu.ui.analytics;
+package t1tanic.nutritionicu.ui.labreports;
 
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.dialog.Dialog;
