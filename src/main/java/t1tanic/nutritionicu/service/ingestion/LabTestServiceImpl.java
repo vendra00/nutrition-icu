@@ -13,9 +13,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import t1tanic.nutritionicu.config.AppProperties;
 import t1tanic.nutritionicu.dto.IngestionSummary;
+import t1tanic.nutritionicu.dto.LabReportDetail;
 import t1tanic.nutritionicu.dto.LabReportSummary;
+import t1tanic.nutritionicu.exception.ResourceNotFoundException;
 import t1tanic.nutritionicu.exception.ValidationException;
+import t1tanic.nutritionicu.model.LabReport;
+import t1tanic.nutritionicu.model.Patient;
 import t1tanic.nutritionicu.repo.LabReportRepository;
+import t1tanic.nutritionicu.service.lab.AnalyteCatalog;
 
 /**
  * Resolves the front-end's requested folder against a configured root, guards
@@ -27,12 +32,15 @@ public class LabTestServiceImpl implements LabTestService {
 
     private final LabReportIngestionService ingestionService;
     private final LabReportRepository reportRepository;
+    private final AnalyteCatalog analyteCatalog;
     private final Path root;
 
     public LabTestServiceImpl(LabReportIngestionService ingestionService,
-                              LabReportRepository reportRepository, AppProperties properties) {
+                              LabReportRepository reportRepository, AnalyteCatalog analyteCatalog,
+                              AppProperties properties) {
         this.ingestionService = ingestionService;
         this.reportRepository = reportRepository;
+        this.analyteCatalog = analyteCatalog;
         this.root = Path.of(properties.ingestion().root()).toAbsolutePath().normalize();
     }
 
@@ -40,6 +48,36 @@ public class LabTestServiceImpl implements LabTestService {
     @Transactional(readOnly = true)
     public List<LabReportSummary> recentReports(int limit) {
         return reportRepository.findRecentSummaries(PageRequest.of(0, Math.max(limit, 1)));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public LabReportDetail reportDetail(Long reportId) {
+        LabReport report = reportRepository.findById(reportId)
+                .orElseThrow(() -> new ResourceNotFoundException("Lab report " + reportId + " not found"));
+        Patient patient = report.getPatient();
+        // Within the transaction: walking sections -> results triggers the lazy loads, then we map to a DTO.
+        List<LabReportDetail.Section> sections = report.getSections().stream()
+                .map(section -> new LabReportDetail.Section(
+                        section.getCategory(),
+                        section.getName(),
+                        section.getValidatedBy(),
+                        section.getResults().stream()
+                                .map(r -> new LabReportDetail.Row(
+                                        analyteCatalog.codeFor(r.getAnalyteName()),
+                                        analyteCatalog.displayName(r.getAnalyteName()),
+                                        r.getValueRaw(),
+                                        r.getUnitRaw(),
+                                        r.getFlag() == null ? null : r.getFlag().name(),
+                                        r.getRefRaw()))
+                                .toList()))
+                .toList();
+        return new LabReportDetail(
+                patient.getId(), patient.getMedicalRecordNumber(), patient.getFullName(),
+                report.getOrderNumber(), report.getReference(), report.getDepartment(), report.getCenter(),
+                report.getRequestingPhysician(), report.getReportDate(),
+                report.getReceptionAt(), report.getFinalizationAt(),
+                report.getAgeYearsAtReport(), report.getSourceFilename(), sections);
     }
 
     @Override

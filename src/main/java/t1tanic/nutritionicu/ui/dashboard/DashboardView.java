@@ -7,10 +7,12 @@ import com.github.appreciated.apexcharts.config.builder.ChartBuilder;
 import com.github.appreciated.apexcharts.config.builder.DataLabelsBuilder;
 import com.github.appreciated.apexcharts.config.builder.LegendBuilder;
 import com.github.appreciated.apexcharts.config.builder.PlotOptionsBuilder;
+import com.github.appreciated.apexcharts.config.builder.StrokeBuilder;
 import com.github.appreciated.apexcharts.config.builder.XAxisBuilder;
 import com.github.appreciated.apexcharts.config.chart.Type;
 import com.github.appreciated.apexcharts.config.legend.Position;
 import com.github.appreciated.apexcharts.config.plotoptions.builder.BarBuilder;
+import com.github.appreciated.apexcharts.config.stroke.Curve;
 import com.github.appreciated.apexcharts.config.xaxis.XAxisType;
 import com.github.appreciated.apexcharts.helper.Coordinate;
 import com.github.appreciated.apexcharts.helper.Series;
@@ -19,11 +21,13 @@ import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.grid.Grid;
+import com.vaadin.flow.component.grid.GridVariant;
 import com.vaadin.flow.component.grid.HeaderRow;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.provider.CallbackDataProvider;
@@ -33,20 +37,26 @@ import com.vaadin.flow.router.HasDynamicTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.theme.lumo.LumoUtility;
 import jakarta.annotation.security.PermitAll;
+import java.time.ZoneId;
 import java.util.List;
 import t1tanic.nutritionicu.dto.AlertFilter;
 import t1tanic.nutritionicu.dto.AlertSummary;
 import t1tanic.nutritionicu.dto.DashboardStats;
 import t1tanic.nutritionicu.dto.HeightWeightPoint;
+import t1tanic.nutritionicu.dto.PatientRef;
 import t1tanic.nutritionicu.model.enums.AlertSeverity;
 import t1tanic.nutritionicu.model.enums.Sex;
 import t1tanic.nutritionicu.service.alert.AlertService;
 import t1tanic.nutritionicu.service.dashboard.DashboardService;
+import t1tanic.nutritionicu.service.dashboard.DashboardService.BmiBuckets;
+import t1tanic.nutritionicu.service.dashboard.DashboardService.DeliveryTrend;
+import t1tanic.nutritionicu.service.dashboard.DashboardService.NutricBuckets;
 import t1tanic.nutritionicu.service.patient.PatientOverviewService;
 import t1tanic.nutritionicu.ui.alerts.AlertDetailDialog;
 import t1tanic.nutritionicu.ui.common.I18n;
+import t1tanic.nutritionicu.ui.patients.PatientOverviewDialog;
 
-/** Landing overview: headline counts, cohort charts (ApexCharts) and the most recent alerts. */
+/** Landing overview: headline counts, cohort charts (ApexCharts, with drill-down) and the recent alerts. */
 @Route(value = "", layout = MainLayout.class)
 @PermitAll
 public class DashboardView extends VerticalLayout implements HasDynamicTitle {
@@ -68,6 +78,10 @@ public class DashboardView extends VerticalLayout implements HasDynamicTitle {
     private final transient PatientOverviewService overviewService;
     private AlertFilter alertFilter = AlertFilter.empty();
 
+    /** One clickable category: its label and the patients in it. */
+    private record Bucket(String label, List<PatientRef> patients) {
+    }
+
     public DashboardView(DashboardService dashboardService, AlertService alertService,
                          PatientOverviewService overviewService) {
         this.alertService = alertService;
@@ -77,6 +91,8 @@ public class DashboardView extends VerticalLayout implements HasDynamicTitle {
         setSpacing(true);
 
         DashboardStats s = dashboardService.stats();
+        NutricBuckets nb = dashboardService.nutricBuckets();
+        BmiBuckets bb = dashboardService.bmiBuckets();
         add(new H2(getTranslation("dashboard.title")));
 
         add(row(
@@ -90,35 +106,44 @@ public class DashboardView extends VerticalLayout implements HasDynamicTitle {
                         s.avgPercentDelivered() == null ? "—" : s.avgPercentDelivered() + "%",
                         deliveryColor(s.avgPercentDelivered()))));
 
+        List<Bucket> nutric = List.of(
+                new Bucket(getTranslation("risk.high"), nb.highRisk()),
+                new Bucket(getTranslation("risk.low"), nb.lowRisk()),
+                new Bucket(getTranslation("risk.notassessed"), nb.notAssessed()));
+        List<Bucket> bmi = List.of(
+                new Bucket(getTranslation("bmi.underweight"), bb.underweight()),
+                new Bucket(getTranslation("bmi.normal"), bb.normalWeight()),
+                new Bucket(getTranslation("bmi.overweight"), bb.overweight()),
+                new Bucket(getTranslation("bmi.obese"), bb.obese()));
+
         add(row(
-                chartCard(getTranslation("dashboard.nutricrisk"), nutricPie(s)),
-                chartCard(getTranslation("dashboard.bmidist"), bmiColumn(s)),
-                chartCard(getTranslation("dashboard.heightweight"),
-                        heightWeightScatter(dashboardService.heightWeightScatter()))));
+                drillDownCard(getTranslation("dashboard.nutricrisk"), nutricPie(nutric), nutric),
+                drillDownCard(getTranslation("dashboard.bmidist"), bmiColumn(bmi), bmi)));
+
+        add(row(chartCard(getTranslation("dashboard.heightweight"),
+                heightWeightScatter(dashboardService.heightWeightScatter()))));
+        add(row(chartCard(getTranslation("dashboard.deliveryrate"),
+                deliverySpline(dashboardService.deliveryTrends()))));
 
         add(recentAlertsCard());
     }
 
     // --- ApexCharts (community add-on) ---
 
-    /** NUTRIC risk distribution as a pie. */
-    private ApexCharts nutricPie(DashboardStats s) {
+    private ApexCharts nutricPie(List<Bucket> buckets) {
         ApexCharts pie = ApexChartsBuilder.get()
                 .withChart(ChartBuilder.get().withType(Type.PIE).build())
-                .withLabels(getTranslation("risk.high"), getTranslation("risk.low"),
-                        getTranslation("risk.notassessed"))
+                .withLabels(buckets.stream().map(Bucket::label).toArray(String[]::new))
                 .withColors(RED, GREEN, GREY)
                 .withLegend(LegendBuilder.get().withPosition(Position.BOTTOM).build())
-                .withSeries((double) s.highRisk(), (double) s.lowRisk(), (double) s.notAssessed())
+                .withSeries(buckets.stream().map(b -> (double) b.patients().size()).toArray(Double[]::new))
                 .build();
-        return sized(pie);
+        return sized(pie, "280px");
     }
 
-    /** BMI band distribution as a coloured column chart (one bar per WHO band). */
-    private ApexCharts bmiColumn(DashboardStats s) {
+    private ApexCharts bmiColumn(List<Bucket> buckets) {
         Series<Double> series = new Series<>(getTranslation("dashboard.patients"),
-                (double) s.underweight(), (double) s.normalWeight(),
-                (double) s.overweight(), (double) s.obese());
+                buckets.stream().map(b -> (double) b.patients().size()).toArray(Double[]::new));
         ApexCharts bar = ApexChartsBuilder.get()
                 .withChart(ChartBuilder.get().withType(Type.BAR).build())
                 .withPlotOptions(PlotOptionsBuilder.get()
@@ -128,13 +153,11 @@ public class DashboardView extends VerticalLayout implements HasDynamicTitle {
                 .withLegend(LegendBuilder.get().withShow(false).build())
                 .withSeries(series)
                 .withXaxis(XAxisBuilder.get().withCategories(
-                        getTranslation("bmi.underweight"), getTranslation("bmi.normal"),
-                        getTranslation("bmi.overweight"), getTranslation("bmi.obese")).build())
+                        buckets.stream().map(Bucket::label).toArray(String[]::new)).build())
                 .build();
-        return sized(bar);
+        return sized(bar, "280px");
     }
 
-    /** Height (cm) vs weight (kg) of monitored patients, one series per sex. */
     private ApexCharts heightWeightScatter(List<HeightWeightPoint> points) {
         ApexCharts scatter = ApexChartsBuilder.get()
                 .withChart(ChartBuilder.get().withType(Type.SCATTER).build())
@@ -145,7 +168,21 @@ public class DashboardView extends VerticalLayout implements HasDynamicTitle {
                         sexSeries(getTranslation("sex.MALE"), points, Sex.MALE),
                         sexSeries(getTranslation("sex.FEMALE"), points, Sex.FEMALE))
                 .build();
-        return sized(scatter);
+        return sized(scatter, "300px");
+    }
+
+    /** Per-patient nutrition-delivery (%) trajectories as a smooth area spline (rising = improving). */
+    private ApexCharts deliverySpline(List<DeliveryTrend> trends) {
+        Series<?>[] series = trends.stream().map(DashboardView::deliverySeries).toArray(Series[]::new);
+        ApexCharts chart = ApexChartsBuilder.get()
+                .withChart(ChartBuilder.get().withType(Type.AREA).build())
+                .withStroke(StrokeBuilder.get().withCurve(Curve.SMOOTH).build())
+                .withDataLabels(DataLabelsBuilder.get().withEnabled(false).build())
+                .withLegend(LegendBuilder.get().withPosition(Position.BOTTOM).build())
+                .withXaxis(XAxisBuilder.get().withType(XAxisType.DATETIME).build())
+                .withSeries(series)
+                .build();
+        return sized(chart, "340px");
     }
 
     @SuppressWarnings("unchecked")
@@ -160,10 +197,76 @@ public class DashboardView extends VerticalLayout implements HasDynamicTitle {
         return series;
     }
 
-    private static ApexCharts sized(ApexCharts chart) {
+    @SuppressWarnings("unchecked")
+    private static Series<Coordinate<Long, Double>> deliverySeries(DeliveryTrend trend) {
+        Coordinate<Long, Double>[] data = trend.points().stream()
+                .map(p -> new Coordinate<>(
+                        p.date().atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli(), p.percent()))
+                .toArray(Coordinate[]::new);
+        Series<Coordinate<Long, Double>> series = new Series<>();
+        series.setName(trend.label());
+        series.setData(data);
+        return series;
+    }
+
+    private static ApexCharts sized(ApexCharts chart, String height) {
         chart.setWidth("100%");
-        chart.setHeight("300px");
+        chart.setHeight(height);
         return chart;
+    }
+
+    // --- drill-down: chart + clickable category chips + a patient grid ---
+
+    private Component drillDownCard(String title, ApexCharts chart, List<Bucket> buckets) {
+        Grid<PatientRef> grid = new Grid<>();
+        grid.addComponentColumn(this::patientRefLink)
+                .setHeader(getTranslation("labreports.col.nhc")).setAutoWidth(true);
+        grid.addColumn(PatientRef::name).setHeader(getTranslation("labreports.col.name")).setFlexGrow(1);
+        grid.addThemeVariants(GridVariant.LUMO_COMPACT, GridVariant.LUMO_ROW_STRIPES);
+        grid.setAllRowsVisible(true);
+        grid.setVisible(false);
+
+        Span hint = new Span(getTranslation("dashboard.drillhint"));
+        hint.addClassNames(LumoUtility.TextColor.SECONDARY, LumoUtility.FontSize.SMALL);
+
+        HorizontalLayout chips = new HorizontalLayout();
+        chips.getStyle().set("flex-wrap", "wrap");
+        String[] active = {null}; // the open category's label, or null when the grid is hidden
+        for (Bucket bucket : buckets) {
+            Button chip = new Button(bucket.label() + " (" + bucket.patients().size() + ")");
+            chip.addThemeVariants(ButtonVariant.LUMO_SMALL);
+            chip.setEnabled(!bucket.patients().isEmpty());
+            chip.addClickListener(e -> {
+                boolean opening = !bucket.label().equals(active[0]); // re-clicking the open one closes it
+                active[0] = opening ? bucket.label() : null;
+                if (opening) {
+                    grid.setItems(bucket.patients());
+                }
+                grid.setVisible(opening);
+                hint.setVisible(!opening);
+                chips.getChildren().forEach(c -> ((Button) c).removeThemeVariants(ButtonVariant.LUMO_PRIMARY));
+                if (opening) {
+                    chip.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+                }
+            });
+            chips.add(chip);
+        }
+
+        H3 heading = new H3(title);
+        heading.addClassNames(LumoUtility.FontSize.MEDIUM, LumoUtility.Margin.NONE);
+        VerticalLayout card = new VerticalLayout(heading, chart, chips, hint, grid);
+        card.setSpacing(true);
+        card.setPadding(true);
+        card.getStyle().set("flex", "1").set("min-width", "380px");
+        decorate(card);
+        return card;
+    }
+
+    /** A patient NHC as a link that opens the patient overview (details). */
+    private Component patientRefLink(PatientRef ref) {
+        Button link = new Button(ref.mrn(), e -> new PatientOverviewDialog(ref.id(), overviewService).open());
+        link.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE);
+        return link;
     }
 
     // --- recent alerts ---
@@ -172,7 +275,7 @@ public class DashboardView extends VerticalLayout implements HasDynamicTitle {
         Grid<AlertSummary> grid = new Grid<>(AlertSummary.class, false);
         Grid.Column<AlertSummary> severityCol = grid.addComponentColumn(DashboardView::severityBadge)
                 .setHeader(getTranslation("alerts.col.severity")).setAutoWidth(true);
-        Grid.Column<AlertSummary> patientCol = grid.addComponentColumn(this::patientLink)
+        Grid.Column<AlertSummary> patientCol = grid.addComponentColumn(this::alertPatientLink)
                 .setHeader(getTranslation("alerts.col.patient")).setAutoWidth(true).setFlexGrow(1);
         grid.setHeight("420px");
 
@@ -182,7 +285,6 @@ public class DashboardView extends VerticalLayout implements HasDynamicTitle {
                 query -> (int) alertService.count(alertFilter));
         grid.setItems(dataProvider);
 
-        // Header filters: severity + NHC. Changing either re-queries the backend.
         HeaderRow filterRow = grid.appendHeaderRow();
         ComboBox<AlertSeverity> severity = new ComboBox<>();
         severity.setItems(AlertSeverity.values());
@@ -211,7 +313,7 @@ public class DashboardView extends VerticalLayout implements HasDynamicTitle {
     }
 
     /** The patient NHC as a link that opens the full alert details. */
-    private Component patientLink(AlertSummary alert) {
+    private Component alertPatientLink(AlertSummary alert) {
         Button link = new Button(alert.patientMrn(), e -> new AlertDetailDialog(alert, overviewService).open());
         link.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE);
         return link;
