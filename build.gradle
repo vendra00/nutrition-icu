@@ -21,6 +21,8 @@ java {
 
 repositories {
     mavenCentral()
+    // Vaadin community add-ons (Directory) — e.g. the free ApexCharts component.
+    maven { url = 'https://maven.vaadin.com/vaadin-addons' }
 }
 
 dependencyManagement {
@@ -37,6 +39,9 @@ dependencies {
 
     // Vaadin — pure-Java UI on top of the REST/service layer
     implementation 'com.vaadin:vaadin-spring-boot-starter'
+
+    // Community add-on (experiment): free ApexCharts component, Vaadin 25 build
+    implementation 'com.github.appreciated:apexcharts:25.0.1'
 
     // PDF text extraction (primary path: digital text layer)
     implementation 'org.apache.pdfbox:pdfbox:3.0.6'

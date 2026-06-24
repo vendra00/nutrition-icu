@@ -53,7 +53,7 @@ public class LabReportsView extends VerticalLayout implements HasDynamicTitle {
 
         grid.addComponentColumn(this::nhcLink).setHeader(getTranslation("labreports.col.nhc")).setAutoWidth(true);
         grid.addColumn(LabReportSummary::patientName).setHeader(getTranslation("labreports.col.name")).setFlexGrow(1);
-        grid.addColumn(LabReportSummary::orderNumber).setHeader(getTranslation("labreports.col.order")).setAutoWidth(true);
+        grid.addComponentColumn(this::orderLink).setHeader(getTranslation("labreports.col.order")).setAutoWidth(true);
         grid.addColumn(r -> nz(r.department())).setHeader(getTranslation("labreports.col.department")).setAutoWidth(true);
         grid.addColumn(r -> UiFormat.date(r.reportDate())).setHeader(getTranslation("labreports.col.date")).setAutoWidth(true);
         grid.addColumn(LabReportSummary::sectionCount).setHeader(getTranslation("labreports.col.sections")).setAutoWidth(true);
@@ -69,6 +69,14 @@ public class LabReportsView extends VerticalLayout implements HasDynamicTitle {
     private Component nhcLink(LabReportSummary report) {
         Button link = new Button(report.patientMrn(),
                 e -> new PatientOverviewDialog(report.patientId(), overviewService).open());
+        link.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE);
+        return link;
+    }
+
+    /** The order number (Petició) rendered as a link that opens the report's full detail view. */
+    private Component orderLink(LabReportSummary report) {
+        Button link = new Button(report.orderNumber(),
+                e -> new LabReportDetailDialog(labTestService.reportDetail(report.id()), overviewService).open());
         link.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE);
         return link;
     }
