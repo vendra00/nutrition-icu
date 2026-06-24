@@ -3,6 +3,10 @@ import t1tanic.nutritionicu.ui.common.BarList;
 import t1tanic.nutritionicu.ui.common.Donut;
 import t1tanic.nutritionicu.ui.MainLayout;
 
+import com.github.appreciated.apexcharts.ApexCharts;
+import com.github.appreciated.apexcharts.ApexChartsBuilder;
+import com.github.appreciated.apexcharts.config.builder.ChartBuilder;
+import com.github.appreciated.apexcharts.config.chart.Type;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.grid.Grid;
@@ -84,6 +88,9 @@ public class DashboardView extends VerticalLayout implements HasDynamicTitle {
                         new Donut.Slice(getTranslation("alertSeverity.WARNING"), s.warningAlerts(), ORANGE)),
                         String.valueOf(s.activeAlerts())))));
 
+        // Experiment: the same NUTRIC distribution drawn with the free community ApexCharts add-on.
+        add(row(chartCard(getTranslation("dashboard.nutricrisk") + " · ApexCharts", apexNutricDonut(s))));
+
         add(recentAlertsCard());
     }
 
@@ -106,6 +113,20 @@ public class DashboardView extends VerticalLayout implements HasDynamicTitle {
         card.getStyle().set("flex", "1").set("min-width", "180px");
         decorate(card);
         return card;
+    }
+
+    /** The NUTRIC risk distribution rendered with the community ApexCharts add-on (a real interactive donut). */
+    private ApexCharts apexNutricDonut(DashboardStats s) {
+        ApexCharts donut = ApexChartsBuilder.get()
+                .withChart(ChartBuilder.get().withType(Type.DONUT).build())
+                .withLabels(getTranslation("risk.high"), getTranslation("risk.low"),
+                        getTranslation("risk.notassessed"))
+                .withColors(RED, GREEN, GREY)
+                .withSeries((double) s.highRisk(), (double) s.lowRisk(), (double) s.notAssessed())
+                .build();
+        donut.setWidth("100%");
+        donut.setHeight("280px");
+        return donut;
     }
 
     private static Component chartCard(String title, Component body) {
